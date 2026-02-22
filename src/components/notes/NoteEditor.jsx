@@ -267,7 +267,8 @@ export default function NoteEditor({ note, onSave, onClose = () => {}, allNotes 
     }
   }, [editedNote.content, getCursorLineIndex, setCursorToLine]);
 
-  // F3 — Keyboard shortcut handler for Alt+Up / Alt+Down in textarea
+  // Keyboard shortcut handler for the textarea (Edit Mode)
+  // Handles: Alt+Up / Alt+Down (line move), Tab / Shift+Tab (indentation)
   const handleTextareaKeyDown = useCallback((e) => {
     if (e.altKey && e.key === 'ArrowUp') {
       e.preventDefault();
@@ -275,8 +276,37 @@ export default function NoteEditor({ note, onSave, onClose = () => {}, allNotes 
     } else if (e.altKey && e.key === 'ArrowDown') {
       e.preventDefault();
       handleMoveLineDown();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.target;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const content = editedNote.content;
+
+      if (!e.shiftKey) {
+        // Tab → insert 2 spaces at cursor position
+        const newContent = content.substring(0, start) + '  ' + content.substring(end);
+        handleChange('content', newContent);
+        // Restore cursor after the inserted spaces
+        requestAnimationFrame(() => {
+          textarea.selectionStart = start + 2;
+          textarea.selectionEnd = start + 2;
+        });
+      } else {
+        // Shift+Tab → remove up to 2 spaces before cursor
+        const before = content.substring(0, start);
+        const spacesToRemove = before.endsWith('  ') ? 2 : before.endsWith(' ') ? 1 : 0;
+        if (spacesToRemove > 0) {
+          const newContent = before.substring(0, before.length - spacesToRemove) + content.substring(end);
+          handleChange('content', newContent);
+          requestAnimationFrame(() => {
+            textarea.selectionStart = start - spacesToRemove;
+            textarea.selectionEnd = start - spacesToRemove;
+          });
+        }
+      }
     }
-  }, [handleMoveLineUp, handleMoveLineDown]);
+  }, [handleMoveLineUp, handleMoveLineDown, editedNote.content]);
 
   const handleChange = (field, value) => {
     setEditedNote(prev => ({ ...prev, [field]: value }));

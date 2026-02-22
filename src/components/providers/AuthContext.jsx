@@ -226,11 +226,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    // Redirect to login page using app base URL
-    const loginUrl = appParams.appBaseUrl
-      ? `${appParams.appBaseUrl}/login?app_id=${appParams.appId}&from_url=${encodeURIComponent(window.location.href)}`
-      : `/login?app_id=${appParams.appId}&from_url=${encodeURIComponent(window.location.href)}`;
-    window.location.href = loginUrl;
+    // Redirect to login page using relative path (same domain)
+    const params = new URLSearchParams();
+    if (appParams.appId) params.set('app_id', appParams.appId);
+    params.set('from_url', window.location.href);
+    window.location.href = `/login?${params.toString()}`;
   };
 
   return (

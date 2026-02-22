@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { needsMigration, migrateAllNotes, getMigrationStatusMessage } from '@/lib/noteMigration';
 import { isKeyAvailable } from '@/lib/keyManager';
 import { NO_FOLDER_SENTINEL } from '@/lib/constants';
+import { isFocusInTextInput } from '@/lib/keyboardUtils';
 import { useSidebarState } from '@/hooks/useSidebarState';
 import { useMobileLayout } from '@/hooks/useMobileLayout';
 import { toast } from 'sonner';
@@ -251,13 +252,14 @@ export default function Home() {
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl+N — create new note (focuses QuickEditor — handled by QuickEditor itself via focus)
-      if (e.ctrlKey && e.key === 'n' && !e.shiftKey) {
+      // Ctrl+N — create new note (guard: not when focus is in a text field or already creating)
+      if (e.ctrlKey && e.key === 'n' && !e.shiftKey && !isCreatingNote && !isFocusInTextInput()) {
         e.preventDefault();
         // No explicit tab model needed; QuickEditor is always visible
       }
       // Arrow Up/Down — navigate between notes in the list
-      if (!e.ctrlKey && !e.metaKey && filteredNotes.length > 0) {
+      // Guard: only when focus is NOT inside a text input (textarea, input, contentEditable)
+      if (!e.ctrlKey && !e.metaKey && !isFocusInTextInput() && filteredNotes.length > 0) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           const currentIndex = activeNote
             ? filteredNotes.findIndex(n => n.id === activeNote.id)
@@ -277,7 +279,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeNote, filteredNotes, handleSelectNote]);
+  }, [activeNote, filteredNotes, handleSelectNote, isCreatingNote]);
 
   // ─── Mobile: FAB creates note ─────────────────────────────────────────────
   const handleFABClick = useCallback(() => {

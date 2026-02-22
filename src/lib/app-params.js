@@ -66,7 +66,6 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 		return searchParam;
 	}
 	if (defaultValue) {
-		storage.setItem(storageKey, defaultValue);
 		return defaultValue;
 	}
 	const storedValue = storage.getItem(storageKey);
@@ -86,6 +85,13 @@ const getAppParams = () => {
 	if (getAppParamValue("clear_access_token") === 'true') {
 		storage.removeItem('kawa_access_token');
 		storage.removeItem('token');
+	}
+
+	// Clear stale app_base_url from localStorage if it points to localhost
+	// This fixes the issue where old builds stored localhost URL and redirect went to localhost
+	const storedBaseUrl = storage.getItem('kawa_app_base_url');
+	if (storedBaseUrl && storedBaseUrl.includes('localhost')) {
+		storage.removeItem('kawa_app_base_url');
 	}
 	
 	const token = getAppParamValue("access_token", { 
