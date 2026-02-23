@@ -66,35 +66,29 @@ const validateCNPJ = (cnpj) => {
 export const cpfSchema = z
   .string()
   .superRefine((val, ctx) => {
+    // Normaliza: remove qualquer caractere não-numérico (mascara residual, pontos, traços)
+    const digits = (val || '').replace(/\D/g, '');
+
     // Campo obrigatório
-    if (!val || val.length === 0) {
+    if (digits.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CPF é obrigatório',
       });
       return;
     }
-    
-    // Validação de tamanho
-    if (val.length !== 11) {
+
+    // Validação de tamanho (apenas dígitos)
+    if (digits.length !== 11) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CPF deve ter 11 dígitos',
       });
       return;
     }
-    
-    // Validação de formato
-    if (!/^\d{11}$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'CPF deve conter apenas dígitos',
-      });
-      return;
-    }
-    
-    // Validação de CPF válido
-    if (!validateCPF(val)) {
+
+    // Validação de CPF válido (algoritmo)
+    if (!validateCPF(digits)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CPF inválido',
@@ -105,35 +99,29 @@ export const cpfSchema = z
 export const cnpjSchema = z
   .string()
   .superRefine((val, ctx) => {
+    // Normaliza: remove qualquer caractere não-numérico (mascara residual, pontos, barras, traços)
+    const digits = (val || '').replace(/\D/g, '');
+
     // Campo obrigatório
-    if (!val || val.length === 0) {
+    if (digits.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CNPJ é obrigatório',
       });
       return;
     }
-    
-    // Validação de tamanho
-    if (val.length !== 14) {
+
+    // Validação de tamanho (apenas dígitos)
+    if (digits.length !== 14) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CNPJ deve ter 14 dígitos',
       });
       return;
     }
-    
-    // Validação de formato
-    if (!/^\d{14}$/.test(val)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'CNPJ deve conter apenas dígitos',
-      });
-      return;
-    }
-    
-    // Validação de CNPJ válido
-    if (!validateCNPJ(val)) {
+
+    // Validação de CNPJ válido (algoritmo)
+    if (!validateCNPJ(digits)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'CNPJ inválido',

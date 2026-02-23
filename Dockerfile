@@ -37,12 +37,14 @@ ARG VITE_APP_NAME=KawaMyCenter
 ARG VITE_KAWA_APP_ID=test-app
 ARG VITE_KAWA_FUNCTIONS_VERSION=v1
 ARG VITE_KAWA_APP_BASE_URL=http://localhost:3116
+ARG VITE_CEP_API_URL=
 
-# Set environment variables for build
+# Set environment variables for build (Vite bakes these into the bundle at build time)
 ENV VITE_APP_NAME=${VITE_APP_NAME}
 ENV VITE_KAWA_APP_ID=${VITE_KAWA_APP_ID}
 ENV VITE_KAWA_FUNCTIONS_VERSION=${VITE_KAWA_FUNCTIONS_VERSION}
 ENV VITE_KAWA_APP_BASE_URL=${VITE_KAWA_APP_BASE_URL}
+ENV VITE_CEP_API_URL=${VITE_CEP_API_URL}
 
 # Build the application
 RUN npm run build

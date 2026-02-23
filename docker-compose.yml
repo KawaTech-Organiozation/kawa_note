@@ -77,6 +77,7 @@ services:
         VITE_KAWA_APP_ID: ${VITE_KAWA_APP_ID:-test-app}
         VITE_KAWA_FUNCTIONS_VERSION: ${VITE_KAWA_FUNCTIONS_VERSION:-v1}
         VITE_KAWA_APP_BASE_URL: ${VITE_KAWA_APP_BASE_URL:-http://localhost:3116}
+        VITE_CEP_API_URL: ${VITE_CEP_API_URL:-}
     container_name: kawa_note-app
     restart: unless-stopped
     networks:

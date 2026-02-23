@@ -56,58 +56,45 @@ export function AddressForm() {
   const [cepError, setCepError] = useState(null);
 
   /**
-   * Busca endereço via API própria quando CEP é preenchido
+   * Busca endereço via API própria (VITE_CEP_API_URL) quando CEP é preenchido
    * @requires CEP com 8 dígitos numéricos (sem máscara)
    */
   const fetchAddressFromCep = async (cep) => {
     const cleanCep = (cep || '').replace(/\D/g, '');
     if (!/^\d{8}$/.test(cleanCep)) return;
 
+    if (!CEP_API_URL) {
+      setCepError('API de CEP não configurada');
+      return;
+    }
+
+    // Formato padrão XXXXX-XXX exigido pela API própria
+    const formattedCep = `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}`;
+
     setLoadingCep(true);
     setCepError(null);
 
-    const tryFetch = async (url, mapFn) => {
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) return null;
-      const data = await response.json();
-      return mapFn(data);
-    };
-
     try {
-      let address = null;
-
-      if (CEP_API_URL) {
-        address = await tryFetch(`${CEP_API_URL}/${cleanCep}`, (data) => ({
-          street: data.addressLine || '',
-          district: data.district || '',
-          city: data.city || '',
-          state: data.stateCode || '',
-        }));
+      const response = await fetch(`${CEP_API_URL}/${formattedCep}`);
+      if (!response.ok) {
+        setCepError('CEP não encontrado');
+        return;
       }
-
-      if (!address) {
-        address = await tryFetch(`https://viacep.com.br/ws/${cleanCep}/json/`, (data) => {
-          if (data.erro) return null;
-          return {
-            street: data.logradouro || '',
-            district: data.bairro || '',
-            city: data.localidade || '',
-            state: data.uf || '',
-          };
-        });
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setCepError('Erro ao buscar CEP');
+        return;
       }
-
-      if (!address) {
+      const data = await response.json();
+      if (!data || !data.city) {
         setCepError('CEP não encontrado');
         return;
       }
 
-      setValue('street', address.street);
-      setValue('district', address.district);
-      setValue('city', address.city);
-      setValue('state', address.state);
+      setValue('street', data.addressLine || '');
+      setValue('district', data.district || '');
+      setValue('city', data.city || '');
+      setValue('state', data.stateCode || '');
     } catch (error) {
       console.error('Error fetching CEP:', error);
       setCepError('Erro ao buscar CEP');

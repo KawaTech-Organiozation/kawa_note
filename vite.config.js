@@ -6,8 +6,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
-  // Load .env from root directory (one level up)
-  const rootEnvPath = path.resolve(__dirname, '../.env')
+  // Load .env from the project root directory (same directory as vite.config.js)
+  const rootEnvPath = path.resolve(__dirname, '.env')
   let rootEnv = {}
   
   if (fs.existsSync(rootEnvPath)) {
@@ -109,11 +109,14 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     define: {
-      'import.meta.env.VITE_APP_NAME': JSON.stringify(rootEnv.VITE_APP_NAME || 'KawaMyCenter'),
-      'import.meta.env.VITE_KAWA_APP_ID': JSON.stringify(rootEnv.VITE_KAWA_APP_ID || 'test-app'),
-      'import.meta.env.VITE_KAWA_FUNCTIONS_VERSION': JSON.stringify(rootEnv.VITE_KAWA_FUNCTIONS_VERSION || 'v1'),
-      'import.meta.env.VITE_KAWA_APP_BASE_URL': JSON.stringify(rootEnv.VITE_KAWA_APP_BASE_URL || 'http://localhost:3116'),
-      'import.meta.env.VITE_CEP_API_URL': JSON.stringify(rootEnv.VITE_CEP_API_URL || ''),
+      // process.env.VITE_* → valores injetados via ARG→ENV no Dockerfile (Docker build)
+      // rootEnv.VITE_*    → valores lidos do .env local (dev local, .env excluído pelo .dockerignore)
+      // A prioridade é: Docker ENV > .env local > default value
+      'import.meta.env.VITE_APP_NAME': JSON.stringify(process.env.VITE_APP_NAME || rootEnv.VITE_APP_NAME || 'KawaMyCenter'),
+      'import.meta.env.VITE_KAWA_APP_ID': JSON.stringify(process.env.VITE_KAWA_APP_ID || rootEnv.VITE_KAWA_APP_ID || 'test-app'),
+      'import.meta.env.VITE_KAWA_FUNCTIONS_VERSION': JSON.stringify(process.env.VITE_KAWA_FUNCTIONS_VERSION || rootEnv.VITE_KAWA_FUNCTIONS_VERSION || 'v1'),
+      'import.meta.env.VITE_KAWA_APP_BASE_URL': JSON.stringify(process.env.VITE_KAWA_APP_BASE_URL || rootEnv.VITE_KAWA_APP_BASE_URL || 'http://localhost:3116'),
+      'import.meta.env.VITE_CEP_API_URL': JSON.stringify(process.env.VITE_CEP_API_URL || rootEnv.VITE_CEP_API_URL || ''),
     },
     server: {
       port: 3116,
