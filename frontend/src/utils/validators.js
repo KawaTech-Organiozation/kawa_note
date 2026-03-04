@@ -83,7 +83,25 @@ export const phoneSchema = z
 
 export const cepSchema = z
   .string()
-  .regex(/^\d{8}$/, 'CEP deve ter 8 dígitos');
+  .superRefine((val, ctx) => {
+    // Normaliza: remove qualquer caractere não-numérico (hífen da máscara)
+    const digits = (val || '').replace(/\D/g, '');
+
+    if (digits.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CEP é obrigatório',
+      });
+      return;
+    }
+
+    if (digits.length !== 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CEP deve ter 8 dígitos',
+      });
+    }
+  });
 
 export const emailSchema = z
   .string()
