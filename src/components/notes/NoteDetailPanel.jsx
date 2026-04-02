@@ -1,3 +1,4 @@
+import { forwardRef, useRef, useImperativeHandle } from 'react';
 import NoteEditor from './NoteEditor';
 import { useNote } from '@/api/useNotes';
 import RelatedNotes from './RelatedNotes';
@@ -16,16 +17,24 @@ import RelatedNotes from './RelatedNotes';
  * @param {Function} props.onMoveNote - Called with (note) to open MoveNoteDialog
  * @returns {JSX.Element}
  */
-export default function NoteDetailPanel({ note, onUpdate, onDelete: _onDelete, onMoveNote, allNotes = [] }) {
+const NoteDetailPanel = forwardRef(function NoteDetailPanel({ note, onUpdate, onDelete: _onDelete, onMoveNote, allNotes = [] }, ref) {
+  const editorRef = useRef(null);
   const { data: noteResponse } = useNote(note?.id, {
     refetchInterval: note?.metadataStatus === 'queued' || note?.metadataStatus === 'processing' ? 3000 : false
   });
   const currentNote = noteResponse?.data || note;
 
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => editorRef.current?.hasUnsavedChanges?.() ?? false,
+    saveNote: () => editorRef.current?.saveNote?.() ?? Promise.resolve(true),
+    discardChanges: () => editorRef.current?.discardChanges?.() ?? true,
+  }), []);
+
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-950 min-w-0">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 min-w-0">
       <div className="flex-1 overflow-hidden">
         <NoteEditor
+          ref={editorRef}
           note={currentNote}
           mode="panel"
           onSave={onUpdate}
@@ -37,4 +46,6 @@ export default function NoteDetailPanel({ note, onUpdate, onDelete: _onDelete, o
       <RelatedNotes currentNote={currentNote} />
     </div>
   );
-}
+});
+
+export default NoteDetailPanel;

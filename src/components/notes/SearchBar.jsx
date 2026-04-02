@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X, SlidersHorizontal, Globe, Loader2 } from "lucide-react";
@@ -11,12 +11,19 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useSearchIndex } from '@/hooks/useSearchIndex';
-import { useNotes } from '@/api/useNotes';
 import { useRelationGraph } from '@/api/useRelations';
 import { format } from 'date-fns';
 
-export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChange, searchScope = 'folder', onSelectResult }) {
-  const [searchTerm, setSearchTerm] = useState('');
+export default function SearchBar({
+  onSearch,
+  onFilterChange,
+  onSearchScopeChange,
+  searchScope = 'folder',
+  onSelectResult,
+  value = '',
+  notes: providedNotes,
+}) {
+  const [searchTerm, setSearchTerm] = useState(value);
   const [filters, setFilters] = useState({
     text: true,
     url: true,
@@ -33,13 +40,16 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
     }
   });
 
-  const { data: notesResponse = { data: [] } } = useNotes();
   const { data: relationGraphResponse = { data: { edges: [] } } } = useRelationGraph();
-  const notes = notesResponse?.data || [];
+  const notes = providedNotes || [];
   const relations = relationGraphResponse?.data?.edges || [];
   
   // Usar hook de busca
   const { search, isIndexing, indexedCount } = useSearchIndex(notes, relations);
+
+  useEffect(() => {
+    setSearchTerm(value);
+  }, [value]);
 
   // Filtrar resultados de busca
   const searchResults = useMemo(() => {
@@ -71,8 +81,6 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
       onSelectResult(note);
     }
 
-    // Limpar busca
-    setSearchTerm('');
     setIsSearchOpen(false);
   };
 
@@ -102,7 +110,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => setIsSearchOpen(true)}
           placeholder="Buscar notas, contextos, relações..."
-          className="pl-10 pr-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+          className="pl-10 pr-10 bg-white dark:bg-slate-900/90 border-slate-200 dark:border-slate-700/60"
         />
         {searchTerm && (
           <Button
@@ -117,7 +125,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
 
         {/* Search Results Dropdown */}
         {isSearchOpen && (searchTerm || searchHistory.length > 0) && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg z-50">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-lg shadow-lg z-50">
             {isIndexing && (
               <div className="p-3 flex items-center gap-2 text-sm text-slate-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -141,18 +149,18 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
                             <button
                               key={note.id}
                               onClick={() => handleSelectResult(note)}
-                              className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors border-b border-slate-100 dark:border-slate-800/80 last:border-b-0"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-slate-900 truncate">
+                                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                                     {note.title}
                                   </p>
-                                  <p className="text-xs text-slate-500 truncate">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                     {note.content?.substring(0, 80)}...
                                   </p>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                                    <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded">
                                       {note.type}
                                     </span>
                                     <span className="text-xs text-slate-400">
@@ -178,14 +186,14 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
                             <button
                               key={note.id}
                               onClick={() => handleSelectResult(note)}
-                              className="w-full text-left px-3 py-2 hover:bg-amber-50 transition-colors border-b border-slate-100 last:border-b-0"
+                              className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors border-b border-slate-100 dark:border-slate-800/80 last:border-b-0"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-slate-900 truncate">
+                                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                                     {note.title}
                                   </p>
-                                  <p className="text-xs text-slate-500 truncate">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                     {note.content?.substring(0, 80)}...
                                   </p>
                                   <div className="flex items-center gap-2 mt-1">
@@ -201,7 +209,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
                     )}
                   </div>
                 ) : (
-                  <div className="p-4 text-center text-sm text-slate-500">
+                    <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
                     Nenhuma nota encontrada
                   </div>
                 )}
@@ -209,7 +217,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
             ) : (
               <>
                 {searchHistory.length > 0 && (
-                  <div className="p-3 border-b border-slate-200">
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800">
                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                       Buscas recentes
                     </p>
@@ -218,7 +226,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
                         <button
                           key={idx}
                           onClick={() => handleSearch(term)}
-                          className="w-full text-left px-2 py-1 text-sm text-slate-600 hover:bg-slate-50 rounded transition-colors"
+                          className="w-full text-left px-2 py-1 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded transition-colors"
                         >
                           {term}
                         </button>
@@ -263,7 +271,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
           </PopoverTrigger>
           <PopoverContent className="w-56" align="end">
             <div className="space-y-3">
-              <h4 className="font-medium text-sm text-slate-900">Tipos de nota</h4>
+              <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100">Tipos de nota</h4>
               <div className="space-y-2">
                 {[
                   { key: 'text', label: 'Texto' },
@@ -284,7 +292,7 @@ export default function SearchBar({ onSearch, onFilterChange, onSearchScopeChang
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-slate-200">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="pinnedOnly"

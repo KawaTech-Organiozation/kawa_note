@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 export default function NoteEmptyPanel() {
   return (
     <motion.div
-      className="flex-1 flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
+      className="flex-1 flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-700/70"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -25,8 +25,8 @@ export default function NoteEmptyPanel() {
         className="flex flex-col items-center text-center px-8 max-w-xs"
       >
         {/* Icon */}
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 mb-5">
-          <Sparkles className="h-8 w-8 text-indigo-400" />
+        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 mb-5">
+          <Sparkles className="h-8 w-8 text-indigo-400 dark:text-indigo-300" />
         </div>
 
         {/* Heading */}

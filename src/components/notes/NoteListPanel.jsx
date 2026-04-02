@@ -51,14 +51,14 @@ export default function NoteListPanel({
   const isEmpty = notes.length === 0;
 
   return (
-    <div className="flex flex-col h-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden">
+    <div className="flex flex-col h-full border-r border-slate-200 dark:border-slate-700/70 bg-white dark:bg-slate-900 overflow-hidden">
 
       {/* New Note button — creation happens in the right panel */}
       <div className="px-3 pt-2 pb-2 shrink-0">
         <Button
           id="btn-new-note"
           variant="outline"
-          className="w-full justify-start gap-2 text-slate-500 border-dashed hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+          className="w-full justify-start gap-2 text-slate-500 dark:text-slate-300 border-dashed hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
           onClick={onNewNote}
           aria-label="Criar nova nota"
         >
@@ -68,11 +68,11 @@ export default function NoteListPanel({
       </div>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-slate-100 shrink-0" />
+      <div className="mx-3 border-t border-slate-100 dark:border-slate-800 shrink-0" />
 
       {/* Loading more indicator — subtle footer shown during background batch loading */}
       {isLoadingMore && (
-        <div className="px-3 py-1.5 shrink-0 flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="px-3 py-1.5 shrink-0 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
           <Loader2 className="w-3 h-3 animate-spin" />
           Carregando mais {totalLoaded}/{total} notas...
         </div>
@@ -82,13 +82,13 @@ export default function NoteListPanel({
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 mb-3">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
               <Brain className="h-6 w-6 text-slate-400" />
             </div>
-            <p className="text-sm font-medium text-slate-600 mb-1">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-200 mb-1">
               {searchTerm ? 'Nenhuma nota encontrada' : 'Sem notas aqui'}
             </p>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               {searchTerm
                 ? 'Tente outros termos ou ajuste os filtros'
                 : 'Crie sua primeira nota acima'}
@@ -99,7 +99,7 @@ export default function NoteListPanel({
             {/* Pinned section */}
             {pinnedNotes.length > 0 && (
               <div>
-                <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   Fixadas
                 </p>
                 <AnimatePresence initial={false}>
@@ -121,7 +121,7 @@ export default function NoteListPanel({
             {regularNotes.length > 0 && (
               <div>
                 {pinnedNotes.length > 0 && (
-                  <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     Notas
                   </p>
                 )}

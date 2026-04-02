@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Link as LinkIcon, Image as ImageIcon, Type, Loader2 } from "lucide-react";
@@ -7,13 +7,25 @@ import { toast } from 'sonner';
 import { useCreateNote } from '@/api/useNotes';
 import { checkAndHandleEncryptionError } from '@/lib/errorHandlers';
 
-export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight = false }) {
+const EMPTY_DRAFT = '';
+
+const QuickEditor = forwardRef(function QuickEditor({ onNoteSaved, folderId = null, fullHeight = false, onDirtyChange }, ref) {
   const [content, setContent] = useState('');
-  const [type, setType] = useState('text');
   // Auto-expand when rendered in full-height panel mode
   const [isExpanded, setIsExpanded] = useState(fullHeight);
   const [error, setError] = useState(null);
   const createNoteMutation = useCreateNote();
+  const isDirty = useMemo(() => content.trim().length > 0, [content]);
+
+  useEffect(() => {
+    if (fullHeight) {
+      setIsExpanded(true);
+    }
+  }, [fullHeight]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const detectType = (text) => {
     const urlRegex = /^https?:\/\/.+/i;
@@ -51,8 +63,16 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
     }
   };
 
+  const resetDraft = () => {
+    setContent(EMPTY_DRAFT);
+    setError(null);
+    if (!fullHeight) {
+      setIsExpanded(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!content.trim()) return;
+    if (!content.trim()) return false;
     
     try {
       setError(null);
@@ -78,31 +98,41 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
 
       const result = await createNoteMutation.mutateAsync(noteData);
       
-      setContent('');
-      if (!fullHeight) setIsExpanded(false);
+      resetDraft();
       toast.success('Nota criada com sucesso');
       if (onNoteSaved) onNoteSaved(result?.data || result);
+      return true;
     } catch (err) {
       // Check if it's an encryption error and handle logout
       if (checkAndHandleEncryptionError(err)) {
-        return;
+        return false;
       }
       
       const errorMessage = err?.data?.error?.message || err?.message || 'Erro ao salvar nota';
       setError(errorMessage);
       toast.error(errorMessage);
+      return false;
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => isDirty,
+    saveDraft: () => handleSave(),
+    discardDraft: () => {
+      resetDraft();
+      return true;
+    }
+  }), [isDirty, content, fullHeight]);
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSave();
+      void handleSave();
     }
   };
 
   return (
     <motion.div
-      className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/70 rounded-2xl shadow-sm overflow-hidden"
       initial={false}
       animate={{ height: (isExpanded || fullHeight) ? 'auto' : '56px' }}
     >
@@ -114,7 +144,7 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
             onFocus={() => setIsExpanded(true)}
             onKeyDown={handleKeyDown}
             placeholder="Escreva, cole um link, ou adicione uma ideia..."
-            className="min-h-[32px] resize-none border-0 focus-visible:ring-0 text-base placeholder:text-slate-400 leading-relaxed"
+            className="min-h-[32px] resize-none border-0 focus-visible:ring-0 text-base placeholder:text-slate-400 dark:placeholder:text-slate-500 leading-relaxed bg-transparent text-slate-900 dark:text-slate-100"
             style={{ minHeight: isExpanded && fullHeight ? '420px' : undefined }}
             rows={isExpanded ? (fullHeight ? 18 : 5) : 1}
           />
@@ -126,14 +156,14 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100"
+              className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-800"
             >
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 text-slate-500 hover:text-slate-700"
-                  onClick={() => setType('text')}
+                  disabled
                 >
                   <Type className="w-4 h-4" />
                 </Button>
@@ -141,7 +171,7 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
                   variant="ghost"
                   size="sm"
                   className="h-8 text-slate-500 hover:text-slate-700"
-                  onClick={() => setType('url')}
+                  disabled
                 >
                   <LinkIcon className="w-4 h-4" />
                 </Button>
@@ -149,7 +179,7 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
                   variant="ghost"
                   size="sm"
                   className="h-8 text-slate-500 hover:text-slate-700"
-                  onClick={() => setType('image')}
+                  disabled
                 >
                   <ImageIcon className="w-4 h-4" />
                 </Button>
@@ -160,8 +190,7 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setContent('');
-                    setIsExpanded(false);
+                    resetDraft();
                   }}
                   disabled={createNoteMutation.isPending}
                 >
@@ -192,7 +221,7 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
       </div>
       
       {isExpanded && (
-        <div className="px-4 pb-3 text-xs text-slate-400">
+        <div className="px-4 pb-3 text-xs text-slate-400 dark:text-slate-500">
           {error ? (
             <span className="text-red-600">Erro: {error}</span>
           ) : (
@@ -202,4 +231,6 @@ export default function QuickEditor({ onNoteSaved, folderId = null, fullHeight =
       )}
     </motion.div>
   );
-}
+});
+
+export default QuickEditor;

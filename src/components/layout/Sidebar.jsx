@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Folder,
   ChevronRight,
   ChevronDown,
   Brain,
@@ -289,6 +288,8 @@ function SidebarContent({
   searchScope,
   onSearchScopeChange,
   onFilterChange,
+  searchTerm,
+  searchableNotes,
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -377,6 +378,8 @@ function SidebarContent({
               onSearchScopeChange={onSearchScopeChange}
               searchScope={searchScope}
               onSelectResult={onSelectSearchResult}
+              value={searchTerm}
+              notes={searchableNotes}
             />
           </div>
         )}
@@ -665,6 +668,8 @@ export default function Sidebar({
   searchScope,
   onSearchScopeChange,
   onFilterChange,
+  searchTerm,
+  searchableNotes,
 }) {
   // Mobile: renderizar como Sheet drawer
   if (isMobile) {
@@ -686,6 +691,8 @@ export default function Sidebar({
             searchScope={searchScope}
             onSearchScopeChange={onSearchScopeChange}
             onFilterChange={onFilterChange}
+            searchTerm={searchTerm}
+            searchableNotes={searchableNotes}
           />
         </SheetContent>
       </Sheet>
@@ -710,6 +717,8 @@ export default function Sidebar({
         searchScope={searchScope}
         onSearchScopeChange={onSearchScopeChange}
         onFilterChange={onFilterChange}
+        searchTerm={searchTerm}
+        searchableNotes={searchableNotes}
       />
     </div>
   );
