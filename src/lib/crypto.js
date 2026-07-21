@@ -17,6 +17,24 @@ const IV_LENGTH = 12; // 96 bits (GCM standard)
 const ENCRYPTION_VERIFIER_PLAINTEXT = 'KAWA_NOTE_VERIFIER_V1';
 
 /**
+ * Returns crypto.subtle, or throws a clear, actionable error if Web Crypto is
+ * unavailable. `crypto.subtle` only exists in SECURE CONTEXTS: HTTPS, or
+ * http://localhost / http://127.0.0.1. Insecure origins like http://0.0.0.0 or
+ * a LAN IP over http leave it undefined, which otherwise surfaces as a cryptic
+ * "Cannot read properties of undefined (reading 'importKey')".
+ * @returns {SubtleCrypto}
+ */
+function getSubtle() {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error(
+      'Web Crypto indisponível: a criptografia ponta-a-ponta exige um contexto seguro. ' +
+      'Acesse via https:// ou http://localhost (endereços como 0.0.0.0 ou IPs por http não são contextos seguros).'
+    );
+  }
+  return crypto.subtle;
+}
+
+/**
  * Generate a random salt for key derivation
  * @returns {Promise<string>} Base64-encoded salt
  */
@@ -32,10 +50,11 @@ export async function generateSalt() {
  * @returns {Promise<CryptoKey>} AES-256-GCM key
  */
 export async function deriveKey(password, saltBase64) {
+  const subtle = getSubtle();
   const salt = base64ToArrayBuffer(saltBase64);
-  
+
   // Import password as raw key material
-  const passwordKey = await crypto.subtle.importKey(
+  const passwordKey = await subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
     'PBKDF2',
@@ -44,7 +63,7 @@ export async function deriveKey(password, saltBase64) {
   );
 
   // Derive AES-256-GCM key
-  const key = await crypto.subtle.deriveKey(
+  const key = await subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt,
@@ -72,7 +91,7 @@ export async function encrypt(plaintext, key) {
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const encoded = new TextEncoder().encode(plaintext);
 
-  const ciphertext = await crypto.subtle.encrypt(
+  const ciphertext = await getSubtle().encrypt(
     { name: 'AES-GCM', iv },
     key,
     encoded
@@ -102,7 +121,7 @@ export async function decrypt(ciphertextBase64, key) {
     const iv = combined.slice(0, IV_LENGTH);
     const ciphertext = combined.slice(IV_LENGTH);
 
-    const decrypted = await crypto.subtle.decrypt(
+    const decrypted = await getSubtle().decrypt(
       { name: 'AES-GCM', iv },
       key,
       ciphertext

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,7 +21,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
-  FileX
+  FileX,
+  KeyRound
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -314,6 +316,7 @@ function SidebarContent({
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const navigate = useNavigate();
   const { data: foldersResponse = { data: [] } } = useFolderHierarchy();
 
   const flattenFolders = (items, result = []) => {
@@ -408,6 +411,33 @@ function SidebarContent({
       {/* @ts-ignore */}
       <ScrollArea className="flex-1 px-3 py-3">
         <div className="space-y-1">
+          {/* Cofre de Senha — navega para a página do Cofre */}
+          {isCollapsed ? (
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    onClick={() => navigate('/Vault')}
+                    className="flex items-center justify-center p-2 rounded-lg cursor-pointer transition-colors text-emerald-600 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/35"
+                  >
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Cofre de Senha</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <div
+              onClick={() => navigate('/Vault')}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/35"
+            >
+              <KeyRound className="w-4 h-4" />
+              <span className="flex-1 font-medium">Cofre de Senha</span>
+            </div>
+          )}
+
           {isCollapsed ? (
             <TooltipProvider delayDuration={0}>
               <Tooltip>

@@ -35,7 +35,10 @@ function buildComputedCounts(folderMap, folderId) {
 function buildActiveNoteCountSelect() {
   return {
     where: {
-      deletedAt: null
+      deletedAt: null,
+      // Credentials (Cofre) live in the notes table but must not inflate the
+      // Notes folder counts. The Vault computes its own counts client-side.
+      type: { not: 'password' }
     }
   };
 }

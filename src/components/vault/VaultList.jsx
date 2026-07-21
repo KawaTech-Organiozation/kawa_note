@@ -1,0 +1,63 @@
+import { KeyRound, ChevronRight, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { avatarColorClass, hasHealthIssue } from '@/lib/vaultUi';
+
+/**
+ * Credential list panel.
+ * @param {Object} props
+ * @param {Array} props.entries - credential view-models (already filtered)
+ * @param {string|null} props.activeId
+ * @param {(entry: Object) => void} props.onSelect
+ * @param {Map<string, Object>} [props.health] - per-entry password-health flags
+ * @returns {JSX.Element}
+ */
+export default function VaultList({ entries = [], activeId = null, onSelect, health }) {
+  if (entries.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 dark:text-slate-500">
+        <KeyRound className="w-10 h-10 mb-3 opacity-50" />
+        <p className="text-sm">Nenhuma credencial aqui ainda.</p>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      {entries.map((entry) => {
+        const h = health?.get(entry.id);
+        const issue = hasHealthIssue(h);
+        return (
+          <li key={entry.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(entry)}
+              className={cn(
+                'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                activeId === entry.id
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+              )}
+            >
+              <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0', avatarColorClass(entry.title || entry.url))}>
+                {(entry.title || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{entry.title || 'Sem título'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {entry.username || '—'}
+                </p>
+              </div>
+              {issue && (
+                <AlertTriangle
+                  className="w-4 h-4 text-amber-500 shrink-0"
+                  aria-label={[h?.weak && 'senha fraca', h?.reused && 'reutilizada', h?.short && 'curta'].filter(Boolean).join(', ')}
+                />
+              )}
+              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

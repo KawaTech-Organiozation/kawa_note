@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { appParams, setAppToken } from '@/lib/app-params';
 import { apiClient } from '@/api/client';
 import { resetEncryptionLogoutFlag } from '@/api/useNotes';
@@ -6,6 +6,9 @@ import { clearKey } from '@/lib/keyManager';
 import { validateEncryptionVerifier } from '@/lib/crypto';
 
 const AuthContext = createContext(null);
+
+// Auto-lock the E2E encryption key after this much inactivity (protects notes + vault).
+const INACTIVITY_LOCK_MS = 10 * 60 * 1000; // 10 minutes
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -20,6 +23,36 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAppState();
   }, []);
+
+  /**
+   * Lock the vault/notes: wipe the in-memory encryption key and require unlock.
+   * The user stays authenticated; the UnlockScreen re-derives the key on re-entry.
+   */
+  const lock = useCallback(() => {
+    clearKey();
+    setIsEncryptionReady(false);
+    setRequiresUnlock(true);
+  }, []);
+
+  // Auto-lock on inactivity (only while unlocked & authenticated).
+  const lockTimerRef = useRef(null);
+  useEffect(() => {
+    if (!isAuthenticated || !isEncryptionReady) return undefined;
+
+    const resetTimer = () => {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(lock, INACTIVITY_LOCK_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, resetTimer));
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    };
+  }, [isAuthenticated, isEncryptionReady, lock]);
 
   const handleAppError = (appError) => {
     // If app not found (404), allow app to continue without public settings
@@ -258,6 +291,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       login,
       unlock,
+      lock,
       navigateToLogin,
       checkAppState
     }}>

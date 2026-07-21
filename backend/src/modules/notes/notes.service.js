@@ -41,7 +41,7 @@ async function ensureActiveFolder(userId, tenantId, folderId) {
 
 export const notesService = {
   async listNotes(userId, tenantId, filters) {
-    const { page, limit, folderId, tags, pinned } = filters;
+    const { page, limit, folderId, tags, pinned, type, excludeType } = filters;
     const skip = (page - 1) * limit;
     const includeMetadata = await supportsNoteMetadataColumns();
 
@@ -51,6 +51,10 @@ export const notesService = {
       deletedAt: null,
       ...(folderId && { folderId }),
       ...(pinned !== undefined && { pinned }),
+      // Vault/Cofre isolation: include a single type (e.g. 'password') or
+      // exclude one (e.g. keep credentials out of the Notes view).
+      ...(type && { type }),
+      ...(excludeType && { type: { not: excludeType } }),
       ...(tags && {
         tags: {
           hasSome: tags.split(',')
@@ -178,7 +182,8 @@ export const notesService = {
       }
     });
 
-    if (includeMetadata && note.url && metadataStatus === 'queued') {
+    // Never enrich credentials: no outbound fetch of login URLs (privacy/SSRF).
+    if (includeMetadata && note.url && note.type !== 'password' && metadataStatus === 'queued') {
       queueMetadataEnrichment({
         noteId: note.id,
         userId,
@@ -240,7 +245,7 @@ export const notesService = {
       }
     });
 
-    if (includeMetadata && note.url && (shouldRefreshMetadata || note.metadataStatus === 'queued')) {
+    if (includeMetadata && note.url && note.type !== 'password' && (shouldRefreshMetadata || note.metadataStatus === 'queued')) {
       queueMetadataEnrichment({
         noteId: note.id,
         userId,

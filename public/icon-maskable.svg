@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the maskable safe area is always covered -->
+  <rect width="512" height="512" fill="#0f766e"/>
+  <!-- "K" kept within the central 80% safe zone for maskable icons -->
+  <text x="256" y="300" font-size="180" font-weight="bold" fill="white" text-anchor="middle" font-family="system-ui, sans-serif">K</text>
+</svg>

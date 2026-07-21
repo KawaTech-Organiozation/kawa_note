@@ -70,12 +70,15 @@ export default function Login() {
       }, 100);
     } catch (error) {
       console.error('❌ Login error:', error);
+      const msg = error.message || '';
       if (error.status === 401) {
         setApiError('Email ou senha inválidos');
-      } else if (error.message?.includes('Encryption key')) {
+      } else if (msg.includes('Web Crypto') || msg.includes('contexto seguro') || msg.includes('importKey') || msg.includes('subtle')) {
+        setApiError('A criptografia exige um contexto seguro. Abra o app por http://localhost:3116 ou http://127.0.0.1:3116 (ou HTTPS) — endereços como 0.0.0.0 ou IP por http não funcionam.');
+      } else if (msg.includes('Encryption key')) {
         setApiError('Erro ao inicializar encriptação. Tente novamente.');
       } else {
-        setApiError(error.data?.message || error.message || 'Erro ao fazer login');
+        setApiError(error.data?.message || error.data?.error?.message || msg || 'Erro ao fazer login');
       }
     }
   };

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const noteTypeEnum = z.enum(['text', 'url', 'image', 'word']);
+const noteTypeEnum = z.enum(['text', 'url', 'image', 'word', 'password']);
 
 export const createNoteSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -46,7 +46,11 @@ export const listNotesQuerySchema = z.object({
   tags: z.string()
     .max(100, 'Tags parameter must not exceed 100 characters')
     .optional(),
-  pinned: z.string().transform(val => val === 'true').optional()
+  pinned: z.string().transform(val => val === 'true').optional(),
+  // Filter notes by type (e.g. 'password' for the Vault/Cofre view)
+  type: noteTypeEnum.optional(),
+  // Exclude a type from the result (e.g. exclude 'password' from the Notes view)
+  excludeType: noteTypeEnum.optional()
 });
 
 export const noteIdParamSchema = z.object({

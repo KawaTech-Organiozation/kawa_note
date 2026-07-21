@@ -26,7 +26,10 @@ export default defineConfig(({ command, mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        // manifest.json filename to match the <link rel="manifest"> in index.html
+        manifestFilename: 'manifest.json',
+        // Only reference assets that actually exist in public/
+        includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg', 'icon-maskable.svg', 'offline.html'],
         manifest: {
           name: 'Kawa Note',
           short_name: 'Kawa',
@@ -36,50 +39,36 @@ export default defineConfig(({ command, mode }) => {
           display: 'standalone',
           scope: '/',
           start_url: '/',
+          // SVG icons (no PNG toolchain in this environment). Current Chrome/Edge
+          // and Android accept SVG icons with sizes 'any' for installability.
           icons: [
             {
-              src: '/icon-192.png',
+              src: '/icon-192.svg',
               sizes: '192x192',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any'
             },
             {
-              src: '/icon-512.png',
+              src: '/icon-512.svg',
               sizes: '512x512',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any'
             },
             {
-              src: '/icon-192-maskable.png',
-              sizes: '192x192',
-              type: 'image/png',
+              src: '/icon-maskable.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
               purpose: 'maskable'
-            },
-            {
-              src: '/icon-512-maskable.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
-            }
-          ],
-          screenshots: [
-            {
-              src: '/screenshot-540.png',
-              sizes: '540x720',
-              type: 'image/png',
-              form_factor: 'narrow'
-            },
-            {
-              src: '/screenshot-1280.png',
-              sizes: '1280x720',
-              type: 'image/png',
-              form_factor: 'wide'
             }
           ]
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           globIgnores: ['**/node_modules/**/*', './**/*.map'],
+          // SPA offline shell: unknown navigations fall back to the cached app
+          // shell; API requests are never served from the fallback.
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/^\/api/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

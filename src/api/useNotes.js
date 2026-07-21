@@ -138,7 +138,7 @@ export function resetEncryptionLogoutFlag() {
  * @param {Partial<Note>} noteData - Note data to encrypt
  * @returns {Promise<Partial<Note>>} Encrypted note data
  */
-async function encryptNoteData(noteData) {
+export async function encryptNoteData(noteData) {
   console.log('🔐 encryptNoteData: Starting encryption...');
   const key = await getKey();
   if (!key) {
@@ -176,7 +176,7 @@ async function encryptNoteData(noteData) {
  * @param {Note} note - Encrypted note
  * @returns {Promise<Note>} Decrypted note
  */
-async function decryptNoteData(note) {
+export async function decryptNoteData(note) {
   if (!note.isEncrypted) {
     // Legacy plaintext note - return as-is but ensure tags is array
     return {
@@ -488,7 +488,9 @@ export function useAllNotes() {
 
     try {
       // ── Page 1 ──────────────────────────────────────────────────────────
-      const firstResponse = await notesApi.list({ page: 1, limit: BATCH_LIMIT });
+      // excludeType 'password' keeps Cofre credentials out of the Notes list,
+      // counts, client-side search and relation suggestions entirely.
+      const firstResponse = await notesApi.list({ page: 1, limit: BATCH_LIMIT, excludeType: 'password' });
 
       // Abort if a newer run has started
       if (runId !== runIdRef.current) return;
@@ -525,7 +527,7 @@ export function useAllNotes() {
 
         const batch = remainingPages.slice(i, i + BATCH_CONCURRENCY);
         const batchResponses = await Promise.all(
-          batch.map(page => notesApi.list({ page, limit: BATCH_LIMIT }))
+          batch.map(page => notesApi.list({ page, limit: BATCH_LIMIT, excludeType: 'password' }))
         );
 
         if (runId !== runIdRef.current) return;

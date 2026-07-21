@@ -48,10 +48,12 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import Home from './pages/Home';
+import Vault from './pages/Vault';
 
 
 export const PAGES = {
     "Home": Home,
+    "Vault": Vault,
 }
 
 export const pagesConfig = {
