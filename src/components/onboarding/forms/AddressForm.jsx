@@ -42,7 +42,15 @@ const BRAZILIAN_STATES = [
   { code: 'TO', name: 'Tocantins' }
 ];
 
+// Consulta de CEP KawaTech. A variável oficial do padrão é
+// KAWATECH_POSTAL_CODE_URL (https://postalcode.furukawatech.com.br/api); no
+// frontend ela precisa do prefixo VITE_ para ser exposta pelo Vite, então o
+// valor é injetado em VITE_CEP_API_URL no build/deploy.
 const CEP_API_URL = import.meta.env.VITE_CEP_API_URL?.startsWith('http') ? import.meta.env.VITE_CEP_API_URL : null;
+
+// Consulta de CEP é conveniência: nunca pode travar o cadastro. Passado o
+// tempo limite, o usuário segue preenchendo o endereço à mão.
+const CEP_TIMEOUT_MS = 8000;
 
 /**
  * AddressForm Component
@@ -74,8 +82,11 @@ export function AddressForm() {
     setLoadingCep(true);
     setCepError(null);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CEP_TIMEOUT_MS);
+
     try {
-      const response = await fetch(`${CEP_API_URL}/${formattedCep}`);
+      const response = await fetch(`${CEP_API_URL}/${formattedCep}`, { signal: controller.signal });
       if (!response.ok) {
         setCepError('CEP não encontrado');
         return;
@@ -91,14 +102,26 @@ export function AddressForm() {
         return;
       }
 
+      // `state` guarda a UF: a coluna é VarChar(2) e o schema Zod exige 2
+      // caracteres, então o nome por extenso não cabe aqui — ele só aparece no
+      // rótulo do select. Normalizamos para maiúsculas por garantia.
+      const uf = String(data.stateCode || '').trim().toUpperCase();
+
+      // number e complement são preservados de propósito: são digitados pelo
+      // usuário e a consulta de CEP não os conhece.
       setValue('street', data.addressLine || '');
       setValue('district', data.district || '');
       setValue('city', data.city || '');
-      setValue('state', data.stateCode || '');
+      setValue('state', uf);
     } catch (error) {
-      console.error('Error fetching CEP:', error);
-      setCepError('Erro ao buscar CEP');
+      if (error?.name === 'AbortError') {
+        setCepError('Busca de CEP demorou demais. Preencha o endereço manualmente.');
+      } else {
+        console.error('Error fetching CEP:', error);
+        setCepError('Erro ao buscar CEP');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoadingCep(false);
     }
   };

@@ -10,6 +10,14 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Paleta institucional KawaTech (AGENTE_FIXER_IdentidadeVisual,
+  			// decisão "Tema KawaTech = Sim" em 2026-07-23).
+  			// kawatech.primary  → Header, Sidebar, LoginPage, botões
+  			// kawatech.secondary → Títulos e alertas sobre fundo branco
+  			kawatech: {
+  				primary: '#282b5f',
+  				secondary: '#d2314b'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

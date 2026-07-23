@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/components/providers/AuthContext';
 import { useLogin } from '@/api/useAuth';
 import { Eye, EyeOff, Shield, Smartphone, FolderOpen, Zap } from 'lucide-react';
+import { KAWATECH_ASSETS, BRAND_NAMES } from '@/lib/brand';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -88,9 +89,16 @@ export default function Login() {
       {/* Left side - form */}
       <div className="flex-1 flex items-center justify-center bg-white px-8 py-12 lg:px-16">
         <div className="w-full max-w-sm">
-          {/* Logo */}
+          {/* Marca — fundo branco, portanto LOGO-POSITIVO (asset oficial) */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-blue-600">KawaNote</h1>
+            <img
+              src={KAWATECH_ASSETS.logoPositivo}
+              alt="KawaTech"
+              className="h-9 w-auto mb-3"
+              width="160"
+              height="36"
+            />
+            <h1 className="text-2xl font-bold text-kawatech-primary">{BRAND_NAMES.appName}</h1>
             <p className="text-sm text-slate-500 mt-1">Notas seguras com criptografia</p>
           </div>
 

@@ -1,0 +1,91 @@
+name: Docker Publish
+
+# Publica as imagens do Kawa Note no GHCR, tirando o build do servidor
+# Portainer. O docker-compose.yml de produção consome exatamente estas imagens.
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # fail-fast desligado: se o frontend quebrar, ainda queremos saber se as
+      # imagens do backend publicam.
+      fail-fast: false
+      matrix:
+        include:
+          # SPA React servida por nginx (Dockerfile da raiz).
+          - service: frontend
+            context: .
+            file: ./Dockerfile
+            target: runtime
+          # API Fastify.
+          - service: backend
+            context: ./backend
+            file: ./backend/Dockerfile
+            target: runtime
+          # Container efêmero de migration: roda `prisma migrate deploy` e o
+          # seed de planos, depois encerra.
+          - service: backend-migrate
+            context: ./backend
+            file: ./backend/Dockerfile
+            target: migrate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GHCR exige o caminho da imagem em lowercase; o owner tem maiúsculas.
+      - name: Normalize image prefix
+        id: prefix
+        run: echo "value=$(echo 'ghcr.io/${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.prefix.outputs.value }}-${{ matrix.service }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Somente o frontend precisa de valores em build time (Vite injeta no
+          # bundle). Nada aqui é secret: são vars públicas do GitHub.
+          build-args: |
+            VITE_APP_NAME=${{ vars.VITE_APP_NAME || 'KawaMyCenter' }}
+            VITE_KAWA_APP_ID=${{ vars.VITE_KAWA_APP_ID || 'kawa-note' }}
+            VITE_KAWA_FUNCTIONS_VERSION=${{ vars.VITE_KAWA_FUNCTIONS_VERSION || 'v1' }}
+            VITE_KAWA_APP_BASE_URL=${{ vars.VITE_KAWA_APP_BASE_URL }}
+            VITE_CEP_API_URL=${{ vars.VITE_CEP_API_URL }}

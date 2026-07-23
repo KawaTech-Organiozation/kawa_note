@@ -1,26 +1,65 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="https://minio-api.kawatech.com.br/kawatech/logos/Icone-positivo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#0f766e">
+
+    <!-- PWA Meta Tags — cor institucional KawaTech (#282b5f) -->
+    <meta name="theme-color" content="#282b5f">
     <meta name="mobile-web-app-capable" content="yes">
-    
+
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Kawa Note">
-    <link rel="apple-touch-icon" href="/icon-192.svg">
+    <link rel="apple-touch-icon" href="https://minio-api.kawatech.com.br/kawatech/logos/Icone-negativo.png">
 
     <!-- Windows Tiles -->
-    <meta name="msapplication-TileColor" content="#0f766e">
-    <meta name="msapplication-TileImage" content="/icon-192.svg">
-    
-    <title>Kawa Note</title>
+    <meta name="msapplication-TileColor" content="#282b5f">
+    <meta name="msapplication-TileImage" content="https://minio-api.kawatech.com.br/kawatech/logos/Icone-negativo.png">
+
+    <!-- SEO -->
+    <title>Kawa Note — Notas criptografadas e cofre de senhas</title>
+    <meta name="description" content="Kawa Note é um aplicativo de notas com criptografia ponta a ponta e cofre de senhas. Suas notas e credenciais são cifradas no seu dispositivo — o servidor nunca vê o conteúdo.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://kawatech.com.br/kawa-note">
+
+    <!-- Open Graph — card escuro, portanto LOGO-NEGATIVO -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Kawa Note">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:title" content="Kawa Note — Notas criptografadas e cofre de senhas">
+    <meta property="og:description" content="Notas com criptografia ponta a ponta e cofre de senhas. Cifrado no seu dispositivo; o servidor nunca vê o conteúdo.">
+    <meta property="og:url" content="https://kawatech.com.br/kawa-note">
+    <meta property="og:image" content="https://minio-api.kawatech.com.br/kawatech/logos/Logo-Negativo.png">
+    <meta property="og:image:alt" content="KawaTech">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kawa Note — Notas criptografadas e cofre de senhas">
+    <meta name="twitter:description" content="Notas com criptografia ponta a ponta e cofre de senhas. Cifrado no seu dispositivo; o servidor nunca vê o conteúdo.">
+    <meta name="twitter:image" content="https://minio-api.kawatech.com.br/kawatech/logos/Logo-Negativo.png">
+
+    <!-- JSON-LD: Organization usa o LOGO-POSITIVO oficial -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Kawa Note",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "pt-BR",
+      "description": "Aplicativo de notas com criptografia ponta a ponta e cofre de senhas.",
+      "publisher": {
+        "@type": "Organization",
+        "name": "KawaTech",
+        "url": "https://kawatech.com.br",
+        "logo": "https://minio-api.kawatech.com.br/kawatech/logos/Logo-Positivo.png"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

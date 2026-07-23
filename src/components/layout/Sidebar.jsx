@@ -21,9 +21,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
-  FileX,
-  KeyRound
+  FileX
 } from "lucide-react";
+import { Droppable } from "@hello-pangea/dnd";
+import ModeSwitch from "./ModeSwitch";
+import { DND_TYPE_ITEM, DROPPABLE_ROOT, folderDroppableId } from "@/lib/dnd";
+import { KAWATECH_ASSETS, BRAND_NAMES } from "@/lib/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,15 +153,24 @@ function FolderItem({ folder, selectedFolder, onSelect, onDeleteFolder, level = 
 
   return (
     <div>
+      <Droppable droppableId={folderDroppableId(folder.id)} type={DND_TYPE_ITEM}>
+        {(dropProvided, dropSnapshot) => (
       <div
+        ref={dropProvided.innerRef}
+        {...dropProvided.droppableProps}
         className={cn(
           "group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-sm",
           selectedFolder?.id === folder.id
             ? "bg-indigo-100 text-indigo-900 dark:bg-fuchsia-950/45 dark:text-fuchsia-100"
-            : colorClasses[/** @type {keyof typeof colorClasses} */ (folder.color) || 'slate']
+            : colorClasses[/** @type {keyof typeof colorClasses} */ (folder.color) || 'slate'],
+          // Alvo válido em destaque durante o arraste.
+          dropSnapshot.isDraggingOver && "ring-2 ring-indigo-500 dark:ring-fuchsia-400 bg-indigo-50 dark:bg-fuchsia-950/30"
         )}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
       >
+        {/* A biblioteca exige o placeholder no droppable; aqui ele nunca ocupa
+            espaço porque não reordenamos dentro da pasta. */}
+        <span className="hidden">{dropProvided.placeholder}</span>
         {subfolders.length > 0 && (
           <button
             onClick={(e) => {
@@ -258,7 +270,9 @@ function FolderItem({ folder, selectedFolder, onSelect, onDeleteFolder, level = 
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
+        )}
+      </Droppable>
+
       {/* SubFolder Create Dialog */}
       <SubFolderCreateDialog
         open={isCreatingSubfolder}
@@ -374,22 +388,44 @@ function SidebarContent({
     <>
       {/* Header */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+        {/* Marca KawaTech sobre a cor primária (#282b5f): fundo escuro exige o
+            ÍCONE/LOGO NEGATIVO, conforme a regra de escolha do asset. */}
         {isCollapsed ? (
           <div className="flex items-center justify-center">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-kawatech-primary flex items-center justify-center overflow-hidden">
+              <img
+                src={KAWATECH_ASSETS.iconeNegativo}
+                alt="KawaTech"
+                className="h-5 w-5 object-contain"
+                width="20"
+                height="20"
+              />
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-kawatech-primary flex items-center justify-center overflow-hidden">
+              <img
+                src={KAWATECH_ASSETS.iconeNegativo}
+                alt="KawaTech"
+                className="h-5 w-5 object-contain"
+                width="20"
+                height="20"
+              />
             </div>
             <div>
-              <h1 className="font-bold text-foreground">Kawa Note</h1>
+              <h1 className="font-bold text-foreground">{BRAND_NAMES.appName}</h1>
             </div>
           </div>
         )}
+
+        {/* Alternância Notas ↔ Cofre (substitui a antiga entrada do Cofre na
+            lista de pastas — ver PLAN-20260723-001, decisão D4). */}
+        <ModeSwitch
+          mode="notes"
+          isCollapsed={isCollapsed}
+          onModeChange={(next) => { if (next === 'vault') navigate('/Vault'); }}
+        />
 
         {/* Search bar — visible only when sidebar is expanded */}
         {!isCollapsed && (
@@ -411,33 +447,6 @@ function SidebarContent({
       {/* @ts-ignore */}
       <ScrollArea className="flex-1 px-3 py-3">
         <div className="space-y-1">
-          {/* Cofre de Senha — navega para a página do Cofre */}
-          {isCollapsed ? (
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    onClick={() => navigate('/Vault')}
-                    className="flex items-center justify-center p-2 rounded-lg cursor-pointer transition-colors text-emerald-600 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/35"
-                  >
-                    <KeyRound className="w-5 h-5" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>Cofre de Senha</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <div
-              onClick={() => navigate('/Vault')}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/35"
-            >
-              <KeyRound className="w-4 h-4" />
-              <span className="flex-1 font-medium">Cofre de Senha</span>
-            </div>
-          )}
-
           {isCollapsed ? (
             <TooltipProvider delayDuration={0}>
               <Tooltip>
@@ -476,19 +485,28 @@ function SidebarContent({
           )}
 
           {!isCollapsed && (
-            <div
-              onClick={() => onSelectFolder(NO_FOLDER_SENTINEL)}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors",
-                selectedFolder?.virtual
-                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80"
+            /* Também é alvo de soltura: arrastar para cá tira a nota da pasta. */
+            <Droppable droppableId={DROPPABLE_ROOT} type={DND_TYPE_ITEM}>
+              {(dropProvided, dropSnapshot) => (
+                <div
+                  ref={dropProvided.innerRef}
+                  {...dropProvided.droppableProps}
+                  onClick={() => onSelectFolder(NO_FOLDER_SENTINEL)}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors",
+                    selectedFolder?.virtual
+                      ? "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80",
+                    dropSnapshot.isDraggingOver && "ring-2 ring-indigo-500 dark:ring-fuchsia-400"
+                  )}
+                >
+                  <span className="hidden">{dropProvided.placeholder}</span>
+                  <FileX className="w-4 h-4" />
+                  <span className="flex-1">Sem Pasta</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{unfolderedNotesCount || 0}</span>
+                </div>
               )}
-            >
-              <FileX className="w-4 h-4" />
-              <span className="flex-1">Sem Pasta</span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">{unfolderedNotesCount || 0}</span>
-            </div>
+            </Droppable>
           )}
 
           {isCollapsed && (
