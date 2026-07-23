@@ -1,5 +1,0 @@
-This is a placeholder. In production, convert icon.svg to favicon.ico using an online tool or ImageMagick:
-convert icon.svg -define icon:auto-resize=16,32,48,64 favicon.ico
-
-For now, you can use the SVG directly in HTML:
-<link rel="icon" type="image/svg+xml" href="/icon.svg">

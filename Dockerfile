@@ -14,9 +14,9 @@ WORKDIR /app
 # Copy package files for optimal layer caching
 COPY package*.json ./
 
-# Install dependencies using lockfile for determinism
-# Note: Commit package-lock.json to repository for full determinism
-RUN npm install --legacy-peer-deps && npm cache clean --force
+# `npm ci` (e não `npm install`) é o que de fato garante determinismo: instala
+# exatamente o que está no package-lock.json e falha se os dois divergirem.
+RUN npm ci && npm cache clean --force
 
 # -----------------------------------------------------------------------------
 # STAGE 2: build
@@ -67,8 +67,10 @@ RUN addgroup -g 1001 -S nginx-app && adduser -S nginx-app -u 1001
 # Set ownership of nginx html directory
 RUN chown -R nginx-app:nginx-app /usr/share/nginx/html
 
-# Expose port (parametrized via environment variable)
-EXPOSE ${FRONTEND_PORT}
+# nginx sempre escuta 80 dentro do container; o mapeamento para FRONTEND_PORT
+# acontece no Compose. Usar ${FRONTEND_PORT} aqui gerava um EXPOSE vazio, já
+# que o ARG não existe neste stage.
+EXPOSE 80
 
 # Healthcheck for container monitoring
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

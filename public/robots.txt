@@ -1,0 +1,18 @@
+# Kawa Note — diretivas para crawlers
+#
+# O app é autenticado: praticamente todo o conteúdo fica atrás de login e não
+# é rastreável. O que interessa indexar é a página pública de entrada.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Bots agressivos de SEO comercial
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

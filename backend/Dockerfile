@@ -103,12 +103,15 @@ RUN npx prisma generate
 # Switch to non-root user
 USER nodejs
 
-# Expose port (parametrized via environment variable)
-EXPOSE ${BACKEND_PORT}
+# 3115 é a porta da API na convenção do projeto (o nginx do frontend faz
+# proxy_pass para kawa-note-api:3115). ${BACKEND_PORT} não existe como ARG
+# neste stage e gerava um EXPOSE vazio.
+EXPOSE 3115
 
-# Healthcheck for container monitoring
+# O Compose injeta a porta como PORT (não BACKEND_PORT); referenciar a
+# variável errada quebrava o healthcheck quando a imagem roda fora do Compose.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:${BACKEND_PORT}/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:${PORT:-3115}/health || exit 1
 
 # Start application
 CMD ["node", "src/server.js"]
