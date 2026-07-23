@@ -189,7 +189,22 @@ export const notesApi = {
   bulkCreate: (notes) => apiClient.post('/notes/bulk', { notes }),
   update: (id, data) => apiClient.put(`/notes/${id}`, data),
   delete: (id) => apiClient.delete(`/notes/${id}`),
-  search: (query) => apiClient.get(`/notes/search?q=${encodeURIComponent(query)}`)
+  search: (query) => apiClient.get(`/notes/search?q=${encodeURIComponent(query)}`),
+  /**
+   * Delta sync: devolve ciphertext + metadados, até 500 por página, incluindo
+   * itens apagados (para o cliente saber o que remover do cache local).
+   * @param {{cursor?: string, since?: string, limit?: number, type?: string}} params
+   */
+  sync: (params = {}) => {
+    const query = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params)
+          .filter(([, value]) => value !== undefined && value !== null)
+          .map(([key, value]) => [key, String(value)])
+      )
+    ).toString();
+    return apiClient.get(`/notes/sync${query ? `?${query}` : ''}`);
+  }
 };
 
 /**

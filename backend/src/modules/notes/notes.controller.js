@@ -5,6 +5,7 @@ import {
   bulkCreateNotesSchema,
   updateNoteSchema,
   listNotesQuerySchema,
+  syncNotesQuerySchema,
   noteIdParamSchema
 } from './notes.schema.js';
 
@@ -36,8 +37,19 @@ export const notesController = {
       if (error.message === 'Folder not found') {
         return reply.status(404).send(errorResponse('Folder not found', 'NOT_FOUND', 404));
       }
+      if (error.message === 'Folder scope mismatch') {
+        return reply.status(422).send(
+          errorResponse('Folder scope mismatch', 'FOLDER_SCOPE_MISMATCH', 422)
+        );
+      }
       throw error;
     }
+  },
+
+  async sync(request, reply) {
+    const filters = syncNotesQuerySchema.parse(request.query);
+    const result = await notesService.syncNotes(request.user.id, request.user.tenantId, filters);
+    return reply.send(successResponse(result));
   },
 
   async bulkCreate(request, reply) {
@@ -59,6 +71,11 @@ export const notesController = {
       }
       if (error.message === 'Folder not found') {
         return reply.status(404).send(errorResponse('Folder not found', 'NOT_FOUND', 404));
+      }
+      if (error.message === 'Folder scope mismatch') {
+        return reply.status(422).send(
+          errorResponse('Folder scope mismatch', 'FOLDER_SCOPE_MISMATCH', 422)
+        );
       }
       throw error;
     }

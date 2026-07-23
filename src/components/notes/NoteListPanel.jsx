@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Draggable, Droppable } from '@hello-pangea/dnd';
 import { Brain, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NoteListItem from './NoteListItem';
+import { DND_TYPE_ITEM, DROPPABLE_LIST } from '@/lib/dnd';
 
 /** @typedef {import('@/types/models').Note} Note */
 
@@ -95,53 +97,103 @@ export default function NoteListPanel({
             </p>
           </div>
         ) : (
-          <>
-            {/* Pinned section */}
-            {pinnedNotes.length > 0 && (
-              <div>
-                <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Fixadas
-                </p>
-                <AnimatePresence initial={false}>
-                  {pinnedNotes.map(note => (
-                    <NoteListItem
-                      key={note.id}
-                      note={note}
-                      isActive={note.id === activeNoteId}
-                      onClick={() => onSelectNote(note)}
-                      onDelete={onDeleteNote}
-                      onTogglePin={onTogglePin}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Regular notes section */}
-            {regularNotes.length > 0 && (
-              <div>
+          /* Um único Droppable cobre as duas seções: os índices dos Draggables
+             precisam ser contíguos dentro do mesmo droppable. A lista é apenas
+             origem do arraste — soltar aqui não move nada (ver onDragEnd). */
+          <Droppable droppableId={DROPPABLE_LIST} type={DND_TYPE_ITEM} isDropDisabled>
+            {(dropProvided) => (
+              <div ref={dropProvided.innerRef} {...dropProvided.droppableProps}>
+                {/* Pinned section */}
                 {pinnedNotes.length > 0 && (
-                  <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Notas
-                  </p>
+                  <div>
+                    <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Fixadas
+                    </p>
+                    <AnimatePresence initial={false}>
+                      {pinnedNotes.map((note, index) => (
+                        <DraggableNote
+                          key={note.id}
+                          note={note}
+                          index={index}
+                          isActive={note.id === activeNoteId}
+                          onSelectNote={onSelectNote}
+                          onDeleteNote={onDeleteNote}
+                          onTogglePin={onTogglePin}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
                 )}
-                <AnimatePresence initial={false}>
-                  {regularNotes.map(note => (
-                    <NoteListItem
-                      key={note.id}
-                      note={note}
-                      isActive={note.id === activeNoteId}
-                      onClick={() => onSelectNote(note)}
-                      onDelete={onDeleteNote}
-                      onTogglePin={onTogglePin}
-                    />
-                  ))}
-                </AnimatePresence>
+
+                {/* Regular notes section */}
+                {regularNotes.length > 0 && (
+                  <div>
+                    {pinnedNotes.length > 0 && (
+                      <p className="px-3 pt-3 pb-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Notas
+                      </p>
+                    )}
+                    <AnimatePresence initial={false}>
+                      {regularNotes.map((note, index) => (
+                        <DraggableNote
+                          key={note.id}
+                          note={note}
+                          index={pinnedNotes.length + index}
+                          isActive={note.id === activeNoteId}
+                          onSelectNote={onSelectNote}
+                          onDeleteNote={onDeleteNote}
+                          onTogglePin={onTogglePin}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {dropProvided.placeholder}
               </div>
             )}
-          </>
+          </Droppable>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Envolve um NoteListItem num Draggable.
+ *
+ * O handle é a linha inteira: `dragHandleProps` vai no mesmo elemento que
+ * `draggableProps`. O clique continua funcionando porque a biblioteca só
+ * inicia o arraste após deslocamento (mouse) ou long-press (toque).
+ *
+ * @param {Object} props
+ * @param {import('@/types/models').Note} props.note - Nota renderizada
+ * @param {number} props.index - Índice dentro do droppable da lista
+ * @param {boolean} props.isActive - Se é a nota aberta
+ * @param {Function} props.onSelectNote - Callback de seleção
+ * @param {Function} props.onDeleteNote - Callback de exclusão
+ * @param {Function} props.onTogglePin - Callback de fixar/desafixar
+ * @returns {JSX.Element}
+ */
+function DraggableNote({ note, index, isActive, onSelectNote, onDeleteNote, onTogglePin }) {
+  return (
+    <Draggable draggableId={note.id} index={index}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          className={snapshot.isDragging ? 'opacity-90 rounded-lg shadow-lg' : undefined}
+        >
+          <NoteListItem
+            note={note}
+            isActive={isActive}
+            onClick={() => onSelectNote(note)}
+            onDelete={onDeleteNote}
+            onTogglePin={onTogglePin}
+          />
+        </div>
+      )}
+    </Draggable>
   );
 }

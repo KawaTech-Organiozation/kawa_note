@@ -13,6 +13,7 @@
     "db:seed": "node prisma/seed.js",
     "db:seed-plans": "node prisma/seed-plans.js",
     "db:reset": "prisma migrate reset",
+    "audit:folder-scope": "node scripts/audit-folder-scope.js",
     "seed": "node prisma/seed.js",
     "lint": "eslint src/",
     "test": "vitest",

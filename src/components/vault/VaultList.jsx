@@ -1,6 +1,8 @@
+import { Draggable, Droppable } from '@hello-pangea/dnd';
 import { KeyRound, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { avatarColorClass, hasHealthIssue } from '@/lib/vaultUi';
+import { DND_TYPE_ITEM, DROPPABLE_LIST } from '@/lib/dnd';
 
 /**
  * Credential list panel.
@@ -22,12 +24,26 @@ export default function VaultList({ entries = [], activeId = null, onSelect, hea
   }
 
   return (
-    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-      {entries.map((entry) => {
+    /* Lista é só origem do arraste; o destino são as pastas do Cofre. */
+    <Droppable droppableId={DROPPABLE_LIST} type={DND_TYPE_ITEM} isDropDisabled>
+      {(dropProvided) => (
+    <ul
+      ref={dropProvided.innerRef}
+      {...dropProvided.droppableProps}
+      className="divide-y divide-slate-100 dark:divide-slate-800"
+    >
+      {entries.map((entry, index) => {
         const h = health?.get(entry.id);
         const issue = hasHealthIssue(h);
         return (
-          <li key={entry.id}>
+          <Draggable key={entry.id} draggableId={entry.id} index={index}>
+            {(provided, snapshot) => (
+          <li
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={snapshot.isDragging ? 'opacity-90 shadow-lg rounded-lg bg-white dark:bg-slate-900' : undefined}
+          >
             <button
               type="button"
               onClick={() => onSelect(entry)}
@@ -56,8 +72,13 @@ export default function VaultList({ entries = [], activeId = null, onSelect, hea
               <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0" />
             </button>
           </li>
+            )}
+          </Draggable>
         );
       })}
+      {dropProvided.placeholder}
     </ul>
+      )}
+    </Droppable>
   );
 }

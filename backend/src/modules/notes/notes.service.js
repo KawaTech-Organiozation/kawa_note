@@ -19,7 +19,26 @@ function getMetadataStatus(data, existingNote = null) {
   return 'queued';
 }
 
-async function ensureActiveFolder(userId, tenantId, folderId) {
+// Credentials (Cofre) live in `vault` folders; every other note type lives in
+// `note` folders. Keeping the two namespaces apart is what stops a credential
+// from surfacing in the Notes view.
+const VAULT_NOTE_TYPE = 'password';
+
+/** Folder scope a note of this type is allowed to live in. */
+function expectedFolderScope(noteType) {
+  return noteType === VAULT_NOTE_TYPE ? 'vault' : 'note';
+}
+
+/**
+ * Resolve an active folder and, when a note type is given, assert the folder's
+ * scope matches it.
+ *
+ * `noteType` is intentionally optional: callers that are not moving a note
+ * between folders pass nothing, so notes already stored in a mismatched folder
+ * (created before this rule existed) stay editable. Only a folder *change* has
+ * to satisfy the scope rule.
+ */
+async function ensureActiveFolder(userId, tenantId, folderId, noteType = null) {
   if (!folderId) {
     return;
   }
@@ -31,15 +50,70 @@ async function ensureActiveFolder(userId, tenantId, folderId) {
       tenantId,
       deletedAt: null
     },
-    select: { id: true }
+    select: { id: true, scope: true }
   });
 
   if (!folder) {
     throw new Error('Folder not found');
   }
+
+  if (noteType && folder.scope !== expectedFolderScope(noteType)) {
+    throw new Error('Folder scope mismatch');
+  }
 }
 
 export const notesService = {
+  /**
+   * Sincronização delta, com cursor estável.
+   *
+   * Devolve apenas o necessário para hidratar um cache local: o ciphertext e os
+   * metadados não sensíveis. Ordena por `updatedAt` crescente (desempatando por
+   * `id`) para que o cliente possa retomar de onde parou usando o `updatedAt`
+   * da última nota recebida.
+   *
+   * Diferente de `listNotes`, inclui registros com `deletedAt` preenchido: o
+   * cliente precisa saber o que remover do cache local. Por isso o filtro
+   * `since` compara `updatedAt`, que o soft delete também atualiza.
+   *
+   * @param {string} userId
+   * @param {string} tenantId
+   * @param {{cursor?: string, since?: string, limit: number, type?: string}} filters
+   * @returns {Promise<{data: Array, nextCursor: string|null, hasMore: boolean}>}
+   */
+  async syncNotes(userId, tenantId, filters) {
+    const { cursor, since, limit, type } = filters;
+    const includeMetadata = await supportsNoteMetadataColumns();
+
+    const notes = await prisma.note.findMany({
+      where: {
+        userId,
+        tenantId,
+        ...(type && { type }),
+        ...(since && { updatedAt: { gt: new Date(since) } })
+      },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: limit + 1, // +1 sonda se há próxima página, sem COUNT extra.
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      select: {
+        ...buildNoteScalarSelect(includeMetadata),
+        // Nome/cor da pasta já são texto puro (o endpoint de pastas os expõe) e
+        // a UI de detalhe do Cofre depende deles.
+        folder: {
+          select: { id: true, name: true, color: true, icon: true }
+        }
+      }
+    });
+
+    const hasMore = notes.length > limit;
+    const page = hasMore ? notes.slice(0, limit) : notes;
+
+    return {
+      data: page,
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+      hasMore
+    };
+  },
+
   async listNotes(userId, tenantId, filters) {
     const { page, limit, folderId, tags, pinned, type, excludeType } = filters;
     const skip = (page - 1) * limit;
@@ -158,7 +232,7 @@ export const notesService = {
     const metadataStatus = getMetadataStatus(data);
     const { metadataStatus: _metadataStatus, ...persistedData } = data;
 
-    await ensureActiveFolder(userId, tenantId, persistedData.folderId);
+    await ensureActiveFolder(userId, tenantId, persistedData.folderId, persistedData.type);
 
     const note = await prisma.note.create({
       data: {
@@ -214,9 +288,10 @@ export const notesService = {
   async createNotesBulk(userId, tenantId, notes) {
     const includeMetadata = await supportsNoteMetadataColumns();
 
-    // Validate every referenced folder at once.
+    // Validate every referenced folder at once, keeping each folder's scope so
+    // a row cannot be filed into the wrong namespace (credential vs note).
     const folderIds = [...new Set(notes.map(note => note.folderId).filter(Boolean))];
-    let validFolderIds = new Set();
+    let folderScopeById = new Map();
 
     if (folderIds.length > 0) {
       const folders = await prisma.folder.findMany({
@@ -226,17 +301,22 @@ export const notesService = {
           tenantId,
           deletedAt: null
         },
-        select: { id: true }
+        select: { id: true, scope: true }
       });
-      validFolderIds = new Set(folders.map(folder => folder.id));
+      folderScopeById = new Map(folders.map(folder => [folder.id, folder.scope]));
     }
 
     const errors = [];
     const rows = [];
 
     notes.forEach((note, index) => {
-      if (note.folderId && !validFolderIds.has(note.folderId)) {
+      if (note.folderId && !folderScopeById.has(note.folderId)) {
         errors.push({ index, message: 'Folder not found' });
+        return;
+      }
+
+      if (note.folderId && folderScopeById.get(note.folderId) !== expectedFolderScope(note.type)) {
+        errors.push({ index, message: 'Folder scope mismatch' });
         return;
       }
 
@@ -300,10 +380,17 @@ export const notesService = {
       throw new Error('Note not found');
     }
 
+    // A move (drag & drop included) must land in a folder whose scope matches
+    // the note type. Edits that leave the folder untouched skip the scope check
+    // so notes stored in a mismatched folder before this rule stay editable.
+    const isMovingFolder =
+      data.folderId !== undefined && data.folderId !== existingNote.folderId;
+
     await ensureActiveFolder(
       userId,
       tenantId,
-      data.folderId !== undefined ? data.folderId : existingNote.folderId
+      data.folderId !== undefined ? data.folderId : existingNote.folderId,
+      isMovingFolder ? (data.type ?? existingNote.type) : null
     );
 
     const metadataStatus = getMetadataStatus(data, existingNote);

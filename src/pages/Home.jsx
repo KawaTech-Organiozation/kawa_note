@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DragDropContext } from '@hello-pangea/dnd';
 import Sidebar from '../components/layout/Sidebar';
 import BottomNav from '../components/layout/BottomNav';
+import MobileFolderDropBar from '../components/layout/MobileFolderDropBar';
 import FAB from '../components/layout/FAB';
 import MobileSearchModal from '../components/layout/MobileSearchModal';
 import MobileNoteStrip from '../components/layout/MobileNoteStrip';
@@ -13,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, ChevronLeft, ChevronRight, Lock, Menu } from 'lucide-react';
 import { useFolderHierarchy } from '@/api/useFolders';
+import { useMoveToFolder } from '@/api/useMoveToFolder';
+import { parseFolderDroppableId } from '@/lib/dnd';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -84,6 +89,7 @@ export default function Home() {
   const [migrationStatus, setMigrationStatus] = useState(/** @type {'idle' | 'running' | 'completed' | 'error'} */ ('idle'));
   const [migrationProgress, setMigrationProgress] = useState({ current: 0, total: 0 });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarState();
+  const navigate = useNavigate();
   const { isMobile, isSidebarOpen, openSidebar, closeSidebar, activeBottomTab, setActiveBottomTab } = useMobileLayout();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [mobileView, setMobileView] = useState('list');
@@ -95,6 +101,9 @@ export default function Home() {
   const encryptionToastShown = useRef(false);
 
   const { notes, isLoading, isLoadingMore, totalLoaded, total, refetch } = useAllNotes();
+  const { moveToFolder } = useMoveToFolder({ scope: 'notes' });
+  // Só true durante um arraste: controla a barra de destinos do mobile.
+  const [isDraggingItem, setIsDraggingItem] = useState(false);
   const { data: foldersResponse = { data: [] } } = useFolderHierarchy();
   const folders = useMemo(() => flattenFolders(foldersResponse?.data || []), [foldersResponse?.data]);
   const rootFolders = useMemo(
@@ -236,6 +245,27 @@ export default function Home() {
     setPendingActionLabel('continuar');
     setUnsavedDialogOpen(false);
   }, []);
+
+  /**
+   * Conclui um arraste: mover a nota para a pasta em que ela foi solta.
+   * Soltar fora de um alvo, ou na pasta em que a nota já está, não faz nada.
+   * @param {import('@hello-pangea/dnd').DropResult} result
+   */
+  const handleDragEnd = useCallback(async (result) => {
+    setIsDraggingItem(false);
+
+    const { draggableId, destination } = result;
+    if (!destination) return;
+
+    const { isFolder, folderId } = parseFolderDroppableId(destination.droppableId);
+    if (!isFolder) return;
+
+    const dragged = notes.find((note) => note.id === draggableId);
+    if (!dragged || (dragged.folderId ?? null) === folderId) return;
+
+    const moved = await moveToFolder(draggableId, folderId);
+    if (moved) toast.success('Nota movida');
+  }, [notes, moveToFolder]);
 
   const runActionWithGuard = useCallback((label, action) => {
     const controller = getActiveEditorController();
@@ -389,6 +419,12 @@ export default function Home() {
   const LIST_PANEL_WIDTH = 'w-[320px] min-w-[240px]';
 
   return (
+    <DragDropContext
+      /* Monta a barra de destinos ANTES da captura de dimensões — em
+         onDragStart já seria tarde e ela não receberia soltura. */
+      onBeforeCapture={() => setIsDraggingItem(true)}
+      onDragEnd={handleDragEnd}
+    >
     <div className="flex h-screen bg-white dark:bg-[#232733] overflow-hidden text-slate-900 dark:text-slate-100">
       <Sidebar
         selectedFolder={selectedFolder}
@@ -665,6 +701,8 @@ export default function Home() {
               openSidebar();
             } else if (tab === 'search') {
               setIsMobileSearchOpen(true);
+            } else if (tab === 'vault') {
+              runActionWithGuard('abrir o Cofre', () => navigate('/Vault'));
             } else if (tab === 'notes') {
               runActionWithGuard('voltar para as notas', () => {
                 setSelectedFolder(null);
@@ -674,6 +712,8 @@ export default function Home() {
           }}
         />
       )}
+
+      {isMobile && isDraggingItem && <MobileFolderDropBar folders={folders} accent="notes" />}
 
       {isMobile && <FAB onClick={handleFABClick} elevated={isMobile && !!activeNote} />}
 
@@ -742,5 +782,6 @@ export default function Home() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </DragDropContext>
   );
 }

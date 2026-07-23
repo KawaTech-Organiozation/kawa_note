@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { foldersApi } from './client';
+import { clearVaultCache } from '@/lib/vaultCache';
 
 /** @typedef {import('@/types/models').Folder} Folder */
 /** @typedef {import('@/types/api').ApiSuccessResponse} ApiSuccessResponse */
@@ -88,10 +89,15 @@ export const useUpdateFolder = () => {
   
   return useMutation({
     mutationFn: ({ id, data }) => foldersApi.update(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
+      // O cache local do Cofre embute nome/cor da pasta em cada credencial, e
+      // renomear a pasta não altera o `updatedAt` das notas — o delta não traria
+      // a correção. Descartar o cache força um resync completo.
+      await clearVaultCache();
       queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY, variables.id] });
       queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [NOTES_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['vault'] });
       queryClient.refetchQueries({ queryKey: [FOLDERS_QUERY_KEY], type: 'active' });
     }
   });
@@ -106,9 +112,12 @@ export const useDeleteFolder = () => {
   
   return useMutation({
     mutationFn: (id) => foldersApi.delete(id),
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Mesmo motivo do update: o cache do Cofre carrega dados da pasta.
+      await clearVaultCache();
       queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [NOTES_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['vault'] });
       queryClient.refetchQueries({ queryKey: [FOLDERS_QUERY_KEY], type: 'active' });
     }
   });

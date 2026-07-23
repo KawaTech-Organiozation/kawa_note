@@ -9,6 +9,8 @@ export default async function notesRoutes(app) {
 
   app.get('/', notesController.list);
   app.get('/search', notesController.search);
+  // Antes de '/:id' para que "sync" não seja capturado como um id.
+  app.get('/sync', notesController.sync);
   app.get('/:id', notesController.getById);
   app.post('/', notesController.create);
   // Larger body limit than the 1MiB default: a batch carries up to 200

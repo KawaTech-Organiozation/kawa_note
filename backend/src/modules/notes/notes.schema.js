@@ -22,6 +22,24 @@ export const bulkCreateNotesSchema = z.object({
   notes: z.array(createNoteSchema).min(1, 'At least one note is required').max(200, 'At most 200 notes per batch')
 });
 
+// Delta sync (PLAN-20260723-001, Etapa 5).
+//
+// A listagem paginada (`listNotesQuerySchema`) mantém o teto de 100 por página
+// para não quebrar o contrato já consumido pela UI. Este endpoint é separado e
+// aceita páginas maiores porque devolve só ciphertext + metadados — é o caminho
+// usado para hidratar o cache local do Cofre sem 50 requisições sequenciais.
+export const syncNotesQuerySchema = z.object({
+  // Cursor de continuação: id da última nota recebida na página anterior.
+  cursor: z.string().uuid().optional(),
+  // Só devolve notas alteradas depois deste instante (ISO 8601).
+  since: z.string().datetime({ offset: true }).optional(),
+  limit: z.string()
+    .transform(Number)
+    .refine(val => val >= 1 && val <= 500, 'Limit must be between 1 and 500')
+    .default('200'),
+  type: noteTypeEnum.optional()
+});
+
 export const updateNoteSchema = z.object({
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),

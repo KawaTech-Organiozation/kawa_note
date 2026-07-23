@@ -58,7 +58,7 @@ describe('notesService.createNotesBulk', () => {
   });
 
   it('validates every referenced folder with a single query', async () => {
-    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-1' }]);
+    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-1', scope: 'vault' }]);
     prisma.note.createMany.mockResolvedValue({ count: 2 });
 
     await notesService.createNotesBulk(USER_ID, TENANT_ID, [
@@ -67,15 +67,16 @@ describe('notesService.createNotesBulk', () => {
     ]);
 
     expect(prisma.folder.findMany).toHaveBeenCalledTimes(1);
+    // `scope` é selecionado junto: a mesma query resolve posse e namespace.
     expect(prisma.folder.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['folder-1'] }, userId: USER_ID, tenantId: TENANT_ID, deletedAt: null },
-      select: { id: true }
+      select: { id: true, scope: true }
     });
   });
 
   it('fails only the row whose folder belongs to someone else', async () => {
     // 'folder-other' is not returned by the ownership query.
-    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-mine' }]);
+    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-mine', scope: 'vault' }]);
     prisma.note.createMany.mockResolvedValue({ count: 2 });
 
     const result = await notesService.createNotesBulk(USER_ID, TENANT_ID, [
@@ -87,6 +88,31 @@ describe('notesService.createNotesBulk', () => {
     expect(result.created).toBe(2);
     expect(result.errors).toEqual([{ index: 1, message: 'Folder not found' }]);
     expect(prisma.note.createMany.mock.calls[0][0].data).toHaveLength(2);
+  });
+
+  it('rejects a credential filed into a Notes-scoped folder', async () => {
+    // Pasta existe e pertence ao usuário, mas é do namespace de Notas.
+    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-notes', scope: 'note' }]);
+    prisma.note.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await notesService.createNotesBulk(USER_ID, TENANT_ID, [
+      credential({ title: 'ok', folderId: null }),
+      credential({ title: 'wrong-namespace', folderId: 'folder-notes' })
+    ]);
+
+    expect(result.errors).toEqual([{ index: 1, message: 'Folder scope mismatch' }]);
+    expect(prisma.note.createMany.mock.calls[0][0].data).toHaveLength(1);
+  });
+
+  it('accepts a plain note in a Notes-scoped folder', async () => {
+    prisma.folder.findMany.mockResolvedValue([{ id: 'folder-notes', scope: 'note' }]);
+    prisma.note.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await notesService.createNotesBulk(USER_ID, TENANT_ID, [
+      credential({ title: 'nota', type: 'text', folderId: 'folder-notes' })
+    ]);
+
+    expect(result).toEqual({ created: 1, errors: [] });
   });
 
   it('skips the database entirely when no row is valid', async () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,6 @@ import {
   Plus,
   Upload,
   Search,
-  ArrowLeft,
   ChevronLeft,
   FolderClosed,
   FolderPlus,
@@ -51,6 +50,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
+import BottomNav from '@/components/layout/BottomNav';
+import MobileFolderDropBar from '@/components/layout/MobileFolderDropBar';
+import ModeSwitch from '@/components/layout/ModeSwitch';
+import { useIsMobile } from '@/hooks/useMobile';
+import { useMoveToFolder } from '@/api/useMoveToFolder';
+import {
+  DND_TYPE_ITEM,
+  DROPPABLE_ROOT,
+  folderDroppableId,
+  parseFolderDroppableId
+} from '@/lib/dnd';
 import { useVaultEntries } from '@/api/useVault';
 import { useFolderHierarchy, useCreateFolder, useUpdateFolder, useDeleteFolder } from '@/api/useFolders';
 import { computeVaultHealth } from '@/lib/vaultUi';
@@ -78,6 +89,7 @@ function flattenFolders(items, level = 0, result = []) {
  */
 export default function Vault() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [folderFilter, setFolderFilter] = useState(ALL);
   const [activeId, setActiveId] = useState(null);
@@ -87,6 +99,8 @@ export default function Vault() {
   // Folder management: draft = { id: string|null, name } (id null → create).
   const [folderDraft, setFolderDraft] = useState(null);
   const [deletingFolder, setDeletingFolder] = useState(null);
+  // Só true durante um arraste: controla a barra de destinos do mobile.
+  const [isDraggingItem, setIsDraggingItem] = useState(false);
 
   const { data: vaultData = { data: [] }, isLoading, refetch } = useVaultEntries();
   const { data: foldersResponse = { data: [] } } = useFolderHierarchy('vault');
@@ -94,8 +108,30 @@ export default function Vault() {
   const updateFolder = useUpdateFolder();
   const deleteFolder = useDeleteFolder();
 
+  const { moveToFolder } = useMoveToFolder({ scope: 'vault' });
+
   const entries = vaultData.data || [];
   const health = useMemo(() => computeVaultHealth(entries), [entries]);
+
+  /**
+   * Conclui um arraste no Cofre: move a credencial para a pasta destino.
+   * @param {import('@hello-pangea/dnd').DropResult} result
+   */
+  const handleDragEnd = useCallback(async (result) => {
+    setIsDraggingItem(false);
+
+    const { draggableId, destination } = result;
+    if (!destination) return;
+
+    const { isFolder, folderId } = parseFolderDroppableId(destination.droppableId);
+    if (!isFolder) return;
+
+    const dragged = entries.find((entry) => entry.id === draggableId);
+    if (!dragged || (dragged.folderId ?? null) === folderId) return;
+
+    const moved = await moveToFolder(draggableId, folderId);
+    if (moved) toast.success('Credencial movida');
+  }, [entries, moveToFolder]);
   const folderOptions = useMemo(
     () => flattenFolders(foldersResponse?.data || []),
     [foldersResponse?.data]
@@ -177,17 +213,21 @@ export default function Vault() {
   };
 
   return (
+    <DragDropContext
+      /* Monta a barra de destinos ANTES da captura de dimensões. */
+      onBeforeCapture={() => setIsDraggingItem(true)}
+      onDragEnd={handleDragEnd}
+    >
     <div className="flex h-screen bg-white dark:bg-[#232733] overflow-hidden text-slate-900 dark:text-slate-100">
       {/* Folder rail (desktop) */}
       <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433]">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar para Notas
-          </button>
+          {/* Mesmo switch da Sidebar de Notas — a troca de modo é bidirecional
+              e simétrica (PLAN-20260723-001, decisão D4). */}
+          <ModeSwitch
+            mode="vault"
+            onModeChange={(next) => { if (next === 'notes') navigate('/'); }}
+          />
           <div className="flex items-center gap-2 mt-4">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center">
               <KeyRound className="w-5 h-5 text-white" />
@@ -210,6 +250,7 @@ export default function Vault() {
             count={entries.filter((e) => !e.folderId).length}
             active={folderFilter === NO_FOLDER}
             onClick={() => setFolderFilter(NO_FOLDER)}
+            droppableId={DROPPABLE_ROOT}
           />
           <div className="flex items-center justify-between pt-3 pb-1 px-2">
             <span className="text-xs font-medium text-slate-500 uppercase">Pastas</span>
@@ -234,6 +275,7 @@ export default function Vault() {
               onRename={() => setFolderDraft({ id: folder.id, name: folder.name })}
               onDelete={() => setDeletingFolder({ id: folder.id, name: folder.name })}
               style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
+              droppableId={folderDroppableId(folder.id)}
             />
           ))}
           {folderOptions.length === 0 && (
@@ -242,8 +284,8 @@ export default function Vault() {
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main — pb-16 no mobile reserva a altura da BottomNav fixa (h-16) */}
+      <div className={cn('flex-1 flex flex-col overflow-hidden', isMobile && 'pb-16')}>
         {/* Header */}
         <div className="border-b border-slate-200 dark:border-slate-700 shrink-0">
           <div className="flex items-center gap-2 px-3 md:px-6 py-3">
@@ -426,26 +468,52 @@ export default function Vault() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {isMobile && isDraggingItem && (
+        <MobileFolderDropBar folders={folderOptions} accent="vault" />
+      )}
+
+      {isMobile && (
+        <BottomNav
+          activeTab="vault"
+          onTabChange={(tab) => {
+            // O Cofre não tem drawer de pastas nem modal de busca próprios: o
+            // filtro de pasta e a busca já vivem no cabeçalho mobile desta tela.
+            // As demais abas devolvem o usuário ao Home, que é quem as trata.
+            if (tab === 'notes' || tab === 'folders' || tab === 'search' || tab === 'profile') {
+              navigate('/');
+            }
+          }}
+        />
+      )}
     </div>
+    </DragDropContext>
   );
 }
 
 /**
+ * Linha de pasta do Cofre. Quando `droppableId` é informado, a linha vira alvo
+ * de soltura do drag & drop.
  * @param {Object} props
  * @returns {JSX.Element}
  */
-function FolderRow({ icon: Icon, label, count, active, onClick, onRename, onDelete, style }) {
+function FolderRow({ icon: Icon, label, count, active, onClick, onRename, onDelete, style, droppableId }) {
   const manageable = onRename || onDelete;
-  return (
+
+  const row = (dropProvided, dropSnapshot) => (
     <div
+      ref={dropProvided?.innerRef}
+      {...(dropProvided?.droppableProps || {})}
       style={style}
       className={cn(
         'group w-full flex items-center gap-2 pr-1 rounded-lg text-sm transition-colors',
         active
           ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/45 dark:text-emerald-100'
-          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80'
+          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80',
+        dropSnapshot?.isDraggingOver && 'ring-2 ring-emerald-500 dark:ring-emerald-400'
       )}
     >
+      {dropProvided && <span className="hidden">{dropProvided.placeholder}</span>}
       <button
         type="button"
         onClick={onClick}
@@ -482,5 +550,15 @@ function FolderRow({ icon: Icon, label, count, active, onClick, onRename, onDele
         </DropdownMenu>
       )}
     </div>
+  );
+
+  if (!droppableId) {
+    return row(null, null);
+  }
+
+  return (
+    <Droppable droppableId={droppableId} type={DND_TYPE_ITEM}>
+      {(dropProvided, dropSnapshot) => row(dropProvided, dropSnapshot)}
+    </Droppable>
   );
 }

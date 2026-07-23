@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from './client';
 import { initializeEncryption, clearKey } from '@/lib/keyManager';
+import { clearVaultCache } from '@/lib/vaultCache';
+import { terminateDecryptPool } from '@/lib/decryptPool';
 import { createEncryptionVerifier, generateSalt } from '@/lib/crypto';
 import { setAppToken } from '@/lib/app-params';
 
@@ -93,6 +95,10 @@ export const useLogout = () => {
     mutationFn: async () => {
       const response = await authApi.logout();
       clearKey(); // Clear encryption key
+      // O cache local guarda ciphertext do usuário que estava logado: ele não
+      // pode sobreviver ao logout nem vazar para a próxima conta.
+      terminateDecryptPool();
+      await clearVaultCache();
       return response;
     },
     onSuccess: () => {
