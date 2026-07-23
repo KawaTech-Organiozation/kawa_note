@@ -11,6 +11,9 @@ export default async function notesRoutes(app) {
   app.get('/search', notesController.search);
   app.get('/:id', notesController.getById);
   app.post('/', notesController.create);
+  // Larger body limit than the 1MiB default: a batch carries up to 200
+  // client-side encrypted notes.
+  app.post('/bulk', { bodyLimit: 10 * 1024 * 1024 }, notesController.bulkCreate);
   app.put('/:id', notesController.update);
   app.delete('/:id', notesController.delete);
 }

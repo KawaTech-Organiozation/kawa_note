@@ -22,12 +22,13 @@ export const useFolders = (parentId = null) => {
 
 /**
  * Hook to fetch folder hierarchy (tree structure)
+ * @param {'note'|'vault'} [scope] - folder namespace; defaults to Notes folders
  * @returns {import('@tanstack/react-query').UseQueryResult<ApiSuccessResponse<Folder[]>>}
  */
-export const useFolderHierarchy = () => {
+export const useFolderHierarchy = (scope = 'note') => {
   return useQuery({
-    queryKey: [FOLDERS_QUERY_KEY, 'hierarchy'],
-    queryFn: () => foldersApi.hierarchy(),
+    queryKey: [FOLDERS_QUERY_KEY, 'hierarchy', scope],
+    queryFn: () => foldersApi.hierarchy(scope),
     staleTime: 1000 * 60 * 5
   });
 };

@@ -16,6 +16,12 @@ export const createNoteSchema = z.object({
   folderId: z.string().uuid().optional().nullable()
 });
 
+// Bulk creation (credential import). Each item follows the same rules as a
+// single create; the cap keeps a batch within the route's body limit.
+export const bulkCreateNotesSchema = z.object({
+  notes: z.array(createNoteSchema).min(1, 'At least one note is required').max(200, 'At most 200 notes per batch')
+});
+
 export const updateNoteSchema = z.object({
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),

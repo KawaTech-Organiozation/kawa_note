@@ -32,13 +32,14 @@ function buildComputedCounts(folderMap, folderId) {
   return computedCounts;
 }
 
-function buildActiveNoteCountSelect() {
+function buildActiveNoteCountSelect(scope) {
   return {
     where: {
       deletedAt: null,
-      // Credentials (Cofre) live in the notes table but must not inflate the
-      // Notes folder counts. The Vault computes its own counts client-side.
-      type: { not: 'password' }
+      // Count what belongs to the requested view: vault folders count
+      // credentials, everything else counts ordinary notes. Credentials and
+      // notes share the notes table, so the wrong side must never leak in.
+      type: scope === 'vault' ? 'password' : { not: 'password' }
     }
   };
 }
@@ -49,6 +50,14 @@ function buildActiveSubfolderCountSelect() {
       deletedAt: null
     }
   };
+}
+
+/** Split a folder path ("Work/Email" or "Work\\Email") into its segments. */
+function splitFolderPath(pathString) {
+  return String(pathString || '')
+    .split(/[/\\]/)
+    .map(segment => segment.trim())
+    .filter(Boolean);
 }
 
 async function collectDescendantFolderIds(folderId, userId, tenantId) {
@@ -76,13 +85,14 @@ async function collectDescendantFolderIds(folderId, userId, tenantId) {
 }
 
 export const foldersService = {
-  async listFolders(userId, tenantId, parentId = null) {
+  async listFolders(userId, tenantId, parentId = null, scope = undefined) {
     const folders = await prisma.folder.findMany({
       where: {
         userId,
         tenantId,
         deletedAt: null,
-        parentFolderId: parentId
+        parentFolderId: parentId,
+        ...(scope && { scope })
       },
       orderBy: [
         { order: 'asc' },
@@ -91,7 +101,7 @@ export const foldersService = {
       include: {
         _count: {
           select: {
-            notes: buildActiveNoteCountSelect(),
+            notes: buildActiveNoteCountSelect(scope),
             subFolders: buildActiveSubfolderCountSelect()
           }
         }
@@ -101,9 +111,9 @@ export const foldersService = {
     return folders;
   },
 
-  async getFolderHierarchy(userId, tenantId) {
+  async getFolderHierarchy(userId, tenantId, scope = undefined) {
     const folders = await prisma.folder.findMany({
-      where: { userId, tenantId, deletedAt: null },
+      where: { userId, tenantId, deletedAt: null, ...(scope && { scope }) },
       orderBy: [
         { order: 'asc' },
         { name: 'asc' }
@@ -111,7 +121,7 @@ export const foldersService = {
       include: {
         _count: {
           select: {
-            notes: buildActiveNoteCountSelect(),
+            notes: buildActiveNoteCountSelect(scope),
             subFolders: buildActiveSubfolderCountSelect()
           }
         }
@@ -233,7 +243,7 @@ export const foldersService = {
       include: {
         _count: {
           select: {
-            notes: buildActiveNoteCountSelect(),
+            notes: buildActiveNoteCountSelect(data.scope),
             subFolders: buildActiveSubfolderCountSelect()
           }
         }
@@ -241,6 +251,73 @@ export const foldersService = {
     });
 
     return folder;
+  },
+
+  /**
+   * Resolve a set of folder paths ("Work/Email") to folder ids, creating any
+   * missing segment along the way. Used by the credential import so a 700-row
+   * spreadsheet costs one request instead of one POST per folder segment.
+   *
+   * Segments are matched case-insensitively against the existing tree, and the
+   * in-memory map is updated as folders are created — so paths sharing a prefix
+   * ("A/B" and "A/C") create "A" exactly once.
+   *
+   * @returns {Promise<Record<string, string>>} lowercased path -> folder id
+   */
+  async ensureFolderPaths(userId, tenantId, paths, scope = 'vault') {
+    // Only reuse folders from the same scope, so a vault import never adopts a
+    // same-named Notes folder (and vice versa).
+    const folders = await prisma.folder.findMany({
+      where: { userId, tenantId, deletedAt: null, scope },
+      select: { id: true, name: true, parentFolderId: true }
+    });
+
+    // Group by parent so the full path map can be built from the flat list.
+    const childrenByParent = new Map();
+    folders.forEach((folder) => {
+      const parentKey = folder.parentFolderId || '';
+      if (!childrenByParent.has(parentKey)) {
+        childrenByParent.set(parentKey, []);
+      }
+      childrenByParent.get(parentKey).push(folder);
+    });
+
+    const pathMap = new Map();
+    const walk = (parentId, prefix) => {
+      (childrenByParent.get(parentId || '') || []).forEach((folder) => {
+        const path = prefix ? `${prefix}/${folder.name}` : folder.name;
+        pathMap.set(path.toLowerCase(), folder.id);
+        walk(folder.id, path);
+      });
+    };
+    walk(null, '');
+
+    for (const rawPath of paths) {
+      const segments = splitFolderPath(rawPath);
+      let parentId = null;
+      let prefix = '';
+
+      for (const segment of segments) {
+        prefix = prefix ? `${prefix}/${segment}` : segment;
+        const key = prefix.toLowerCase();
+
+        if (pathMap.has(key)) {
+          parentId = pathMap.get(key);
+          continue;
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const created = await prisma.folder.create({
+          data: { name: segment, parentFolderId: parentId, userId, tenantId, scope },
+          select: { id: true }
+        });
+
+        pathMap.set(key, created.id);
+        parentId = created.id;
+      }
+    }
+
+    return Object.fromEntries(pathMap);
   },
 
   async updateFolder(userId, tenantId, folderId, data) {

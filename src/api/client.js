@@ -185,6 +185,8 @@ export const notesApi = {
   },
   get: (id) => apiClient.get(`/notes/${id}`),
   create: (data) => apiClient.post('/notes', data),
+  /** Create up to 200 notes in one request (bulk import). */
+  bulkCreate: (notes) => apiClient.post('/notes/bulk', { notes }),
   update: (id, data) => apiClient.put(`/notes/${id}`, data),
   delete: (id) => apiClient.delete(`/notes/${id}`),
   search: (query) => apiClient.get(`/notes/search?q=${encodeURIComponent(query)}`)
@@ -194,17 +196,23 @@ export const notesApi = {
  * Folders API
  */
 export const foldersApi = {
-  list: (parentId) => {
-    const query = parentId ? `?parentId=${parentId}` : '';
-    return apiClient.get(`/folders${query}`);
+  list: (parentId, scope) => {
+    const params = new URLSearchParams();
+    if (parentId) params.set('parentId', parentId);
+    if (scope) params.set('scope', scope);
+    const query = params.toString();
+    return apiClient.get(`/folders${query ? `?${query}` : ''}`);
   },
-  hierarchy: () => apiClient.get('/folders/hierarchy'),
+  // scope: 'note' | 'vault' — keeps Cofre and Notes folders in separate namespaces.
+  hierarchy: (scope) => apiClient.get(`/folders/hierarchy${scope ? `?scope=${scope}` : ''}`),
   get: (id) => apiClient.get(`/folders/${id}`),
   getNotes: (id, params = {}) => {
     const queryString = new URLSearchParams(params).toString();
     return apiClient.get(`/folders/${id}/notes?${queryString}`);
   },
   create: (data) => apiClient.post('/folders', data),
+  /** Resolve/create folder paths ("Work/Email") in one request; returns a lowercased path -> id map. */
+  ensurePaths: (paths, scope = 'vault') => apiClient.post('/folders/bulk-path', { paths, scope }),
   update: (id, data) => apiClient.put(`/folders/${id}`, data),
   delete: (id) => apiClient.delete(`/folders/${id}`)
 };

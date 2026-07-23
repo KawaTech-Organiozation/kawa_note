@@ -11,6 +11,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   KeyRound,
   Plus,
@@ -19,15 +20,44 @@ import {
   ArrowLeft,
   ChevronLeft,
   FolderClosed,
+  FolderPlus,
   Layers,
-  FileX
+  FileX,
+  Wand2,
+  MoreVertical,
+  Pencil,
+  Trash2
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { useVaultEntries } from '@/api/useVault';
-import { useFolderHierarchy } from '@/api/useFolders';
+import { useFolderHierarchy, useCreateFolder, useUpdateFolder, useDeleteFolder } from '@/api/useFolders';
 import { computeVaultHealth } from '@/lib/vaultUi';
 import VaultList from '@/components/vault/VaultList';
 import VaultDetailPanel from '@/components/vault/VaultDetailPanel';
 import VaultEntryDialog from '@/components/vault/VaultEntryDialog';
+import PasswordGenerator from '@/components/vault/PasswordGenerator';
 import ImportWizardDialog from '@/components/import/ImportWizardDialog';
 
 const ALL = '__all__';
@@ -54,9 +84,15 @@ export default function Vault() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  // Folder management: draft = { id: string|null, name } (id null → create).
+  const [folderDraft, setFolderDraft] = useState(null);
+  const [deletingFolder, setDeletingFolder] = useState(null);
 
   const { data: vaultData = { data: [] }, isLoading, refetch } = useVaultEntries();
-  const { data: foldersResponse = { data: [] } } = useFolderHierarchy();
+  const { data: foldersResponse = { data: [] } } = useFolderHierarchy('vault');
+  const createFolder = useCreateFolder();
+  const updateFolder = useUpdateFolder();
+  const deleteFolder = useDeleteFolder();
 
   const entries = vaultData.data || [];
   const health = useMemo(() => computeVaultHealth(entries), [entries]);
@@ -105,6 +141,41 @@ export default function Vault() {
 
   const folderCount = (folderId) => entries.filter((e) => e.folderId === folderId).length;
 
+  const saveFolder = async () => {
+    const name = folderDraft?.name?.trim();
+    if (!name) {
+      toast.error('Nome da pasta não pode estar vazio');
+      return;
+    }
+    try {
+      if (folderDraft.id) {
+        await updateFolder.mutateAsync({ id: folderDraft.id, data: { name } });
+        toast.success('Pasta renomeada');
+      } else {
+        // scope 'vault' keeps it out of the Notes folder tree.
+        await createFolder.mutateAsync({ name, color: 'slate', scope: 'vault' });
+        toast.success('Pasta criada');
+      }
+      setFolderDraft(null);
+    } catch (err) {
+      toast.error(err?.data?.error?.message || err?.message || 'Erro ao salvar pasta');
+    }
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!deletingFolder) return;
+    try {
+      await deleteFolder.mutateAsync(deletingFolder.id);
+      toast.success('Pasta excluída');
+      if (folderFilter === deletingFolder.id) setFolderFilter(ALL);
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.error?.message || err?.message || 'Erro ao excluir pasta');
+    } finally {
+      setDeletingFolder(null);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white dark:bg-[#232733] overflow-hidden text-slate-900 dark:text-slate-100">
       {/* Folder rail (desktop) */}
@@ -140,7 +211,18 @@ export default function Vault() {
             active={folderFilter === NO_FOLDER}
             onClick={() => setFolderFilter(NO_FOLDER)}
           />
-          <div className="pt-3 pb-1 px-2 text-xs font-medium text-slate-500 uppercase">Pastas</div>
+          <div className="flex items-center justify-between pt-3 pb-1 px-2">
+            <span className="text-xs font-medium text-slate-500 uppercase">Pastas</span>
+            <button
+              type="button"
+              onClick={() => setFolderDraft({ id: null, name: '' })}
+              title="Nova pasta"
+              aria-label="Nova pasta"
+              className="text-slate-400 hover:text-emerald-600 transition-colors"
+            >
+              <FolderPlus className="w-4 h-4" />
+            </button>
+          </div>
           {folderOptions.map((folder) => (
             <FolderRow
               key={folder.id}
@@ -149,9 +231,14 @@ export default function Vault() {
               count={folderCount(folder.id)}
               active={folderFilter === folder.id}
               onClick={() => setFolderFilter(folder.id)}
+              onRename={() => setFolderDraft({ id: folder.id, name: folder.name })}
+              onDelete={() => setDeletingFolder({ id: folder.id, name: folder.name })}
               style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
             />
           ))}
+          {folderOptions.length === 0 && (
+            <p className="px-2 py-1 text-xs text-slate-400">Nenhuma pasta ainda.</p>
+          )}
         </div>
       </aside>
 
@@ -191,6 +278,14 @@ export default function Vault() {
               />
             </div>
 
+            <PasswordGenerator
+              trigger={
+                <Button variant="outline" className="shrink-0" title="Gerar senha">
+                  <Wand2 className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Gerar senha</span>
+                </Button>
+              }
+            />
             <Button variant="outline" onClick={() => setImportOpen(true)} className="shrink-0">
               <Upload className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Importar</span>
@@ -284,6 +379,53 @@ export default function Vault() {
       />
 
       <ImportWizardDialog open={importOpen} onOpenChange={setImportOpen} onImported={refetch} />
+
+      {/* Create / rename vault folder */}
+      <Dialog open={!!folderDraft} onOpenChange={(open) => !open && setFolderDraft(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{folderDraft?.id ? 'Renomear pasta' : 'Nova pasta'}</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={folderDraft?.name ?? ''}
+            onChange={(e) => setFolderDraft((prev) => ({ ...prev, name: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveFolder();
+              if (e.key === 'Escape') setFolderDraft(null);
+            }}
+            placeholder="Nome da pasta"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderDraft(null)}>Cancelar</Button>
+            <Button
+              onClick={saveFolder}
+              disabled={createFolder.isPending || updateFolder.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {folderDraft?.id ? 'Salvar' : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete vault folder */}
+      <AlertDialog open={!!deletingFolder} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pasta "{deletingFolder?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As credenciais dentro dela também serão movidas para a lixeira. Esta ação pode ser desfeita na lixeira.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteFolder} className="bg-rose-600 hover:bg-rose-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -292,22 +434,53 @@ export default function Vault() {
  * @param {Object} props
  * @returns {JSX.Element}
  */
-function FolderRow({ icon: Icon, label, count, active, onClick, style }) {
+function FolderRow({ icon: Icon, label, count, active, onClick, onRename, onDelete, style }) {
+  const manageable = onRename || onDelete;
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       style={style}
       className={cn(
-        'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors',
+        'group w-full flex items-center gap-2 pr-1 rounded-lg text-sm transition-colors',
         active
           ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/45 dark:text-emerald-100'
           : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80'
       )}
     >
-      <Icon className="w-4 h-4 shrink-0" />
-      <span className="flex-1 truncate text-left">{label}</span>
-      {count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex-1 flex items-center gap-2 px-2 py-1.5 min-w-0 text-left"
+      >
+        <Icon className="w-4 h-4 shrink-0" />
+        <span className="flex-1 truncate">{label}</span>
+        {count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
+      </button>
+      {manageable && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 p-1 rounded text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-slate-700 dark:hover:text-slate-200 transition-opacity"
+              aria-label={`Opções da pasta ${label}`}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onRename && (
+              <DropdownMenuItem onClick={onRename}>
+                <Pencil className="w-4 h-4 mr-2" /> Renomear
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem onClick={onDelete} className="text-rose-600 focus:text-rose-600">
+                <Trash2 className="w-4 h-4 mr-2" /> Excluir
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
   );
 }

@@ -142,6 +142,8 @@ model Folder {
   color          String  @default("slate")
   icon           String  @default("folder")
   order          Int     @default(0)
+  // Keeps Cofre (credential) folders and Notes folders in separate namespaces.
+  scope          String  @default("note") // note | vault
   userId         String  @map("user_id")
   tenantId       String  @map("tenant_id") @db.VarChar(64)
   deletedAt      DateTime? @map("deleted_at")
@@ -157,6 +159,7 @@ model Folder {
 
   @@index([tenantId])
   @@index([tenantId, userId, deletedAt], name: "idx_folders_active_lookup")
+  @@index([tenantId, userId, scope, deletedAt], name: "idx_folders_scope_lookup")
   @@map("folders")
 }
 

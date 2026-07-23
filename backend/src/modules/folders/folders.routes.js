@@ -12,6 +12,7 @@ export default async function foldersRoutes(app) {
   app.get('/:id', foldersController.getById);
   app.get('/:id/notes', foldersController.getNotes);
   app.post('/', foldersController.create);
+  app.post('/bulk-path', foldersController.ensurePaths);
   app.put('/:id', foldersController.update);
   app.delete('/:id', foldersController.delete);
 }

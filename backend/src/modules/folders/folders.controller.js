@@ -1,21 +1,24 @@
 import { foldersService } from './folders.service.js';
 import { successResponse, errorResponse } from '../../utils/response.js';
-import { 
-  createFolderSchema, 
-  updateFolderSchema, 
+import {
+  createFolderSchema,
+  bulkFolderPathsSchema,
+  updateFolderSchema,
   folderIdParamSchema,
-  listFoldersQuerySchema
+  listFoldersQuerySchema,
+  folderHierarchyQuerySchema
 } from './folders.schema.js';
 
 export const foldersController = {
   async list(request, reply) {
-    const { parentId } = listFoldersQuerySchema.parse(request.query);
-    const folders = await foldersService.listFolders(request.user.id, request.user.tenantId, parentId);
+    const { parentId, scope } = listFoldersQuerySchema.parse(request.query);
+    const folders = await foldersService.listFolders(request.user.id, request.user.tenantId, parentId, scope);
     return reply.send(successResponse(folders));
   },
 
   async getHierarchy(request, reply) {
-    const folders = await foldersService.getFolderHierarchy(request.user.id, request.user.tenantId);
+    const { scope } = folderHierarchyQuerySchema.parse(request.query);
+    const folders = await foldersService.getFolderHierarchy(request.user.id, request.user.tenantId, scope);
     return reply.send(successResponse(folders));
   },
 
@@ -42,6 +45,12 @@ export const foldersController = {
       }
       throw error;
     }
+  },
+
+  async ensurePaths(request, reply) {
+    const { paths, scope } = bulkFolderPathsSchema.parse(request.body);
+    const pathMap = await foldersService.ensureFolderPaths(request.user.id, request.user.tenantId, paths, scope);
+    return reply.send(successResponse(pathMap, 'Folder paths resolved'));
   },
 
   async update(request, reply) {

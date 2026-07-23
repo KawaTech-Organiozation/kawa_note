@@ -50,7 +50,7 @@ const emptyForm = { title: '', username: '', password: '', url: '', notes: '', t
 export default function VaultEntryDialog({ open, onOpenChange, entry = null, defaultFolderId = null }) {
   const [form, setForm] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
-  const { data: foldersResponse = { data: [] } } = useFolderHierarchy();
+  const { data: foldersResponse = { data: [] } } = useFolderHierarchy('vault');
   const createEntry = useCreateVaultEntry();
   const updateEntry = useUpdateVaultEntry();
 

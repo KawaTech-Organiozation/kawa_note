@@ -195,6 +195,94 @@ export const notesService = {
     return note;
   },
 
+  /**
+   * Create many notes in a single round trip (credential import).
+   *
+   * Deliberately different from createNote in two ways:
+   * - Folder ownership is validated for the whole batch in ONE query instead of
+   *   one per note (the batched equivalent of ensureActiveFolder).
+   * - Metadata enrichment is never queued. Credentials (type 'password') are
+   *   already excluded from enrichment in createNote, and the import flow is the
+   *   only caller today, so nothing is lost. createMany also returns no ids to
+   *   enqueue with.
+   *
+   * A note pointing at a folder the user does not own fails on its own index
+   * without aborting the rest of the batch.
+   *
+   * @returns {Promise<{created: number, errors: Array<{index: number, message: string}>}>}
+   */
+  async createNotesBulk(userId, tenantId, notes) {
+    const includeMetadata = await supportsNoteMetadataColumns();
+
+    // Validate every referenced folder at once.
+    const folderIds = [...new Set(notes.map(note => note.folderId).filter(Boolean))];
+    let validFolderIds = new Set();
+
+    if (folderIds.length > 0) {
+      const folders = await prisma.folder.findMany({
+        where: {
+          id: { in: folderIds },
+          userId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      validFolderIds = new Set(folders.map(folder => folder.id));
+    }
+
+    const errors = [];
+    const rows = [];
+
+    notes.forEach((note, index) => {
+      if (note.folderId && !validFolderIds.has(note.folderId)) {
+        errors.push({ index, message: 'Folder not found' });
+        return;
+      }
+
+      const metadataStatus = getMetadataStatus(note);
+      const { metadataStatus: _metadataStatus, ...persistedData } = note;
+
+      rows.push({
+        index,
+        data: {
+          ...persistedData,
+          userId,
+          tenantId,
+          ...(includeMetadata && {
+            metadataStatus,
+            metadataFetchedAt: metadataStatus === 'ready' ? new Date() : null
+          })
+        }
+      });
+    });
+
+    if (rows.length === 0) {
+      return { created: 0, errors };
+    }
+
+    try {
+      const result = await prisma.note.createMany({ data: rows.map(row => row.data) });
+      return { created: result.count, errors };
+    } catch {
+      // Fast path failed: retry one by one so the caller learns exactly which
+      // rows are bad instead of losing the whole batch.
+      let created = 0;
+
+      for (const row of rows) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await prisma.note.create({ data: row.data, select: { id: true } });
+          created += 1;
+        } catch (error) {
+          errors.push({ index: row.index, message: error.message || 'Failed to create note' });
+        }
+      }
+
+      return { created, errors };
+    }
+  },
+
   async updateNote(userId, tenantId, noteId, data) {
     const includeMetadata = await supportsNoteMetadataColumns();
     const { metadataStatus: _metadataStatus, ...persistedData } = data;

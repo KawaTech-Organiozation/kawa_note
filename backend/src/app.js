@@ -17,7 +17,11 @@ import onboardingRoutes from './modules/onboarding/onboarding.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
-    logger: logger
+    logger: logger,
+    // Behind the Nginx proxy (see nginx.conf). Without this, request.ip is the
+    // proxy container IP for every client and the rate-limit bucket below would
+    // be shared by all users of the app.
+    trustProxy: true
   });
 
   // Register plugins
@@ -46,8 +50,16 @@ export async function buildApp() {
   });
 
   await app.register(rateLimit, {
-    max: 100,
-    timeWindow: '1 minute'
+    max: 300,
+    timeWindow: '1 minute',
+    // Key per session, not per IP, so one user's bulk operation cannot exhaust
+    // the budget of everyone else behind the same NAT/proxy.
+    //
+    // The plugin runs on `onRequest`, which is BEFORE the `authenticate`
+    // preHandler that populates request.user — so request.user.id is not
+    // available here. The bearer token is unique per session and is the closest
+    // stable identity available at this point. Public routes fall back to the IP.
+    keyGenerator: (request) => request.headers.authorization || request.ip
   });
 
   // Error handling

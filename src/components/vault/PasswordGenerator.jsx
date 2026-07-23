@@ -9,17 +9,28 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Wand2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { copyWithAutoClear } from '@/lib/clipboard';
 import {
   generatePassword,
   DEFAULT_GENERATOR_OPTIONS
 } from '@/lib/passwordGenerator';
 
 /**
- * Password generator popover. Calls `onUse(password)` when the user applies one.
- * @param {{ onUse: (password: string) => void, triggerClassName?: string }} props
+ * Password generator popover.
+ *
+ * Two modes, both sharing the exact same controls:
+ * - Field mode: pass `onUse` — the apply button fills the caller's password field.
+ * - Standalone mode: omit `onUse` — the apply button copies to the clipboard
+ *   (auto-clearing), so the generator works on its own from a toolbar.
+ *
+ * @param {Object} props
+ * @param {(password: string) => void} [props.onUse]
+ * @param {string} [props.triggerClassName]
+ * @param {React.ReactNode} [props.trigger] - custom trigger (e.g. a labeled button)
  * @returns {JSX.Element}
  */
-export default function PasswordGenerator({ onUse, triggerClassName }) {
+export default function PasswordGenerator({ onUse, triggerClassName, trigger }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState(DEFAULT_GENERATOR_OPTIONS);
   const [preview, setPreview] = useState(() => generatePassword(DEFAULT_GENERATOR_OPTIONS));
@@ -38,9 +49,20 @@ export default function PasswordGenerator({ onUse, triggerClassName }) {
     regenerate(next);
   };
 
-  const apply = () => {
-    onUse(preview);
-    setOpen(false);
+  const apply = async () => {
+    if (onUse) {
+      onUse(preview);
+      setOpen(false);
+      return;
+    }
+    // Standalone: copy the generated password.
+    const ok = await copyWithAutoClear(preview);
+    if (ok) {
+      toast.success('Senha copiada — será limpa da área de transferência em 20s');
+      setOpen(false);
+    } else {
+      toast.error('Não foi possível copiar');
+    }
   };
 
   return (
@@ -52,16 +74,18 @@ export default function PasswordGenerator({ onUse, triggerClassName }) {
       }}
     >
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={triggerClassName}
-          title="Gerar senha"
-          aria-label="Gerar senha"
-        >
-          <Wand2 className="w-4 h-4" />
-        </Button>
+        {trigger || (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={triggerClassName}
+            title="Gerar senha"
+            aria-label="Gerar senha"
+          >
+            <Wand2 className="w-4 h-4" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 space-y-4">
         <div className="flex items-center gap-2">
@@ -113,7 +137,7 @@ export default function PasswordGenerator({ onUse, triggerClassName }) {
         </div>
 
         <Button type="button" className="w-full" onClick={apply}>
-          Usar esta senha
+          {onUse ? 'Usar esta senha' : 'Copiar senha'}
         </Button>
       </PopoverContent>
     </Popover>

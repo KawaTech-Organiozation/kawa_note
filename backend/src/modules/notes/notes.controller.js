@@ -1,10 +1,11 @@
 import { notesService } from './notes.service.js';
 import { successResponse, errorResponse, paginatedResponse } from '../../utils/response.js';
-import { 
-  createNoteSchema, 
-  updateNoteSchema, 
-  listNotesQuerySchema, 
-  noteIdParamSchema 
+import {
+  createNoteSchema,
+  bulkCreateNotesSchema,
+  updateNoteSchema,
+  listNotesQuerySchema,
+  noteIdParamSchema
 } from './notes.schema.js';
 
 export const notesController = {
@@ -37,6 +38,12 @@ export const notesController = {
       }
       throw error;
     }
+  },
+
+  async bulkCreate(request, reply) {
+    const { notes } = bulkCreateNotesSchema.parse(request.body);
+    const result = await notesService.createNotesBulk(request.user.id, request.user.tenantId, notes);
+    return reply.status(201).send(successResponse(result, 'Notes created'));
   },
 
   async update(request, reply) {
