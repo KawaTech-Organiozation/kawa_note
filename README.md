@@ -93,26 +93,37 @@ Isso combinado com uma interface rápida, organização flexível e a capacidade
 
 ### Instalação
 
+O projeto é um monorepo com npm workspaces: `apps/web` (SPA React) e
+`apps/api` (Fastify + Prisma).
+
 ```bash
 # Clone o repositório
-git clone https://github.com/diegofurukawa/kawa_note.git
+git clone https://github.com/KawaTech-Organiozation/kawa_note.git
 cd kawa_note
 
-# Inicie os serviços com Docker
-docker compose up -d
-
-# Frontend
-cd frontend
+# Instale tudo a partir da raiz (um único lockfile)
 npm install
-npm run dev
 
-# Backend
-cd backend
-npm install
+# Frontend (porta 3116) e backend (porta 3115), em terminais separados
 npm run dev
+npm run dev:api
 ```
 
-Acesse `http://localhost:5173` e faça o onboarding para criar sua conta.
+Alternativa com Docker, subindo a stack inteira com build local:
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+O `docker-compose.yml` da raiz é o de **produção**: ele consome as imagens
+publicadas no GHCR pelo workflow `Docker Publish` e não builda nada — é o
+arquivo que o Portainer executa.
+
+Acesse `http://localhost:3116` e faça o onboarding para criar sua conta.
+
+> A porta da API está acoplada ao valor `3115`: o `nginx.conf` do frontend faz
+> `proxy_pass` para `kawa-note-api:3115` e não lê variáveis de ambiente. Ao
+> mudar `BACKEND_PORT`, atualize também o `nginx.conf`.
 
 ---
 

@@ -20,7 +20,7 @@ services:
   # ---------------------------------------------------------------------------
   migrate:
     build:
-      context: ./backend
+      context: ./apps/api
       dockerfile: Dockerfile
       target: migrate
     container_name: kawa_note-migrate
@@ -38,7 +38,7 @@ services:
   # ---------------------------------------------------------------------------
   api:
     build:
-      context: ./backend
+      context: ./apps/api
       dockerfile: Dockerfile
       target: runtime
     container_name: kawa_note-api
@@ -73,7 +73,7 @@ services:
   # ---------------------------------------------------------------------------
   app:
     build:
-      context: .
+      context: ./apps/web
       dockerfile: Dockerfile
       target: runtime
       args:

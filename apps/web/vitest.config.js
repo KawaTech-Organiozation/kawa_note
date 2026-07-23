@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.js'],
+    // Escopado ao próprio app. Antes do monorepo, sem `include`, o runner do
+    // frontend varria a raiz e executava também os testes do backend.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

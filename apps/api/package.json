@@ -1,5 +1,6 @@
 {
-  "name": "kawa_note-backend",
+  "name": "@kawa-note/api",
+  "private": true,
   "version": "1.0.0",
   "description": "Kawa Note Backend API - Node.js/Fastify + PostgreSQL",
   "main": "src/server.js",
