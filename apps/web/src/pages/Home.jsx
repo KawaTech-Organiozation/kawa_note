@@ -261,10 +261,21 @@ export default function Home() {
     if (!isFolder) return;
 
     const dragged = notes.find((note) => note.id === draggableId);
-    if (!dragged || (dragged.folderId ?? null) === folderId) return;
+    const previousFolderId = dragged?.folderId ?? null;
+    if (!dragged || previousFolderId === folderId) return;
 
     const moved = await moveToFolder(draggableId, folderId);
-    if (moved) toast.success('Nota movida');
+    // Arraste é a operação em que soltar na pasta errada é mais fácil, e o
+    // destino some da tela junto com o item. O desfazer é o mesmo movimento
+    // na direção oposta.
+    if (moved) {
+      toast.success('Nota movida', {
+        action: {
+          label: 'Desfazer',
+          onClick: () => moveToFolder(draggableId, previousFolderId)
+        }
+      });
+    }
   }, [notes, moveToFolder]);
 
   const runActionWithGuard = useCallback((label, action) => {

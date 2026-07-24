@@ -3,13 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -18,14 +12,7 @@ import {
   Upload,
   Search,
   ChevronLeft,
-  FolderClosed,
-  FolderPlus,
-  Layers,
-  FileX,
-  Wand2,
-  MoreVertical,
-  Pencil,
-  Trash2
+  Wand2
 } from 'lucide-react';
 import {
   Dialog,
@@ -44,35 +31,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { DragDropContext, Droppable } from '@hello-pangea/dnd';
+import { DragDropContext } from '@hello-pangea/dnd';
 import BottomNav from '@/components/layout/BottomNav';
+import BrandHeader from '@/components/layout/BrandHeader';
 import MobileFolderDropBar from '@/components/layout/MobileFolderDropBar';
 import ModeSwitch from '@/components/layout/ModeSwitch';
-import { useIsMobile } from '@/hooks/useMobile';
+import { useIsMobile, useIsBelowDesktop } from '@/hooks/useMobile';
 import { useMoveToFolder } from '@/api/useMoveToFolder';
-import {
-  DND_TYPE_ITEM,
-  DROPPABLE_ROOT,
-  folderDroppableId,
-  parseFolderDroppableId
-} from '@/lib/dnd';
+import { parseFolderDroppableId } from '@/lib/dnd';
 import { useVaultEntries } from '@/api/useVault';
 import { useFolderHierarchy, useCreateFolder, useUpdateFolder, useDeleteFolder } from '@/api/useFolders';
 import { computeVaultHealth } from '@/lib/vaultUi';
 import VaultList from '@/components/vault/VaultList';
+import VaultFolderList, { ALL, NO_FOLDER } from '@/components/vault/VaultFolderList';
 import VaultDetailPanel from '@/components/vault/VaultDetailPanel';
 import VaultEntryDialog from '@/components/vault/VaultEntryDialog';
 import PasswordGenerator from '@/components/vault/PasswordGenerator';
 import ImportWizardDialog from '@/components/import/ImportWizardDialog';
-
-const ALL = '__all__';
-const NO_FOLDER = '__no_folder__';
 
 function flattenFolders(items, level = 0, result = []) {
   for (const item of items) {
@@ -90,6 +65,9 @@ function flattenFolders(items, level = 0, result = []) {
 export default function Vault() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // O rail de pastas é `hidden lg:flex`: abaixo de 1024px ele não existe e a
+  // barra de destinos passa a ser o único alvo de soltura da tela.
+  const isBelowDesktop = useIsBelowDesktop();
   const [search, setSearch] = useState('');
   const [folderFilter, setFolderFilter] = useState(ALL);
   const [activeId, setActiveId] = useState(null);
@@ -101,6 +79,9 @@ export default function Vault() {
   const [deletingFolder, setDeletingFolder] = useState(null);
   // Só true durante um arraste: controla a barra de destinos do mobile.
   const [isDraggingItem, setIsDraggingItem] = useState(false);
+  // Gaveta de pastas do mobile — é o que a aba "Pastas" da BottomNav abre
+  // quando o usuário está no Cofre. O rail equivalente é `hidden lg:flex`.
+  const [isFolderSheetOpen, setIsFolderSheetOpen] = useState(false);
 
   const { data: vaultData = { data: [] }, isLoading, refetch } = useVaultEntries();
   const { data: foldersResponse = { data: [] } } = useFolderHierarchy('vault');
@@ -127,10 +108,20 @@ export default function Vault() {
     if (!isFolder) return;
 
     const dragged = entries.find((entry) => entry.id === draggableId);
-    if (!dragged || (dragged.folderId ?? null) === folderId) return;
+    const previousFolderId = dragged?.folderId ?? null;
+    if (!dragged || previousFolderId === folderId) return;
 
     const moved = await moveToFolder(draggableId, folderId);
-    if (moved) toast.success('Credencial movida');
+    // Ver Home.jsx: o destino some da tela junto com o item, então o desfazer
+    // precisa estar no próprio aviso de sucesso.
+    if (moved) {
+      toast.success('Credencial movida', {
+        action: {
+          label: 'Desfazer',
+          onClick: () => moveToFolder(draggableId, previousFolderId)
+        }
+      });
+    }
   }, [entries, moveToFolder]);
   const folderOptions = useMemo(
     () => flattenFolders(foldersResponse?.data || []),
@@ -175,7 +166,31 @@ export default function Vault() {
     refetch();
   };
 
-  const folderCount = (folderId) => entries.filter((e) => e.folderId === folderId).length;
+  // Uma varredura para todas as pastas, em vez de um `filter` por pasta a cada
+  // render — o render dispara a cada tecla digitada na busca, e o cofre tem
+  // centenas de credenciais.
+  const { countsByFolder, unfolderedCount } = useMemo(() => {
+    const counts = new Map();
+    let unfoldered = 0;
+    for (const entry of entries) {
+      if (!entry.folderId) {
+        unfoldered += 1;
+        continue;
+      }
+      counts.set(entry.folderId, (counts.get(entry.folderId) ?? 0) + 1);
+    }
+    return { countsByFolder: counts, unfolderedCount: unfoldered };
+  }, [entries]);
+
+  /**
+   * Abre um diálogo de gerenciamento fechando a gaveta antes.
+   * Dialog do Radix sobre Sheet do Radix disputa o trap de foco.
+   * @param {() => void} open
+   */
+  const openFolderDialog = useCallback((open) => {
+    setIsFolderSheetOpen(false);
+    open();
+  }, []);
 
   const saveFolder = async () => {
     const name = folderDraft?.name?.trim();
@@ -222,67 +237,58 @@ export default function Vault() {
       {/* Folder rail (desktop) */}
       <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433]">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+          {/* Marca antes do switch, na mesma ordem da Sidebar de Notas. O
+              quadrado esmeralda/teal que vivia aqui usava a paleta aposentada
+              pela decisão de identidade registrada em `lib/brand.js`. */}
+          <BrandHeader section="Cofre" className="mb-4" />
           {/* Mesmo switch da Sidebar de Notas — a troca de modo é bidirecional
               e simétrica (PLAN-20260723-001, decisão D4). */}
           <ModeSwitch
             mode="vault"
             onModeChange={(next) => { if (next === 'notes') navigate('/'); }}
           />
-          <div className="flex items-center gap-2 mt-4">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center">
-              <KeyRound className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="font-bold text-foreground">Cofre</h1>
-          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          <FolderRow
-            icon={Layers}
-            label="Todas"
-            count={entries.length}
-            active={folderFilter === ALL}
-            onClick={() => setFolderFilter(ALL)}
-          />
-          <FolderRow
-            icon={FileX}
-            label="Sem Pasta"
-            count={entries.filter((e) => !e.folderId).length}
-            active={folderFilter === NO_FOLDER}
-            onClick={() => setFolderFilter(NO_FOLDER)}
-            droppableId={DROPPABLE_ROOT}
-          />
-          <div className="flex items-center justify-between pt-3 pb-1 px-2">
-            <span className="text-xs font-medium text-slate-500 uppercase">Pastas</span>
-            <button
-              type="button"
-              onClick={() => setFolderDraft({ id: null, name: '' })}
-              title="Nova pasta"
-              aria-label="Nova pasta"
-              className="text-slate-400 hover:text-emerald-600 transition-colors"
-            >
-              <FolderPlus className="w-4 h-4" />
-            </button>
-          </div>
-          {folderOptions.map((folder) => (
-            <FolderRow
-              key={folder.id}
-              icon={FolderClosed}
-              label={folder.name}
-              count={folderCount(folder.id)}
-              active={folderFilter === folder.id}
-              onClick={() => setFolderFilter(folder.id)}
-              onRename={() => setFolderDraft({ id: folder.id, name: folder.name })}
-              onDelete={() => setDeletingFolder({ id: folder.id, name: folder.name })}
-              style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
-              droppableId={folderDroppableId(folder.id)}
-            />
-          ))}
-          {folderOptions.length === 0 && (
-            <p className="px-2 py-1 text-xs text-slate-400">Nenhuma pasta ainda.</p>
-          )}
-        </div>
+        <VaultFolderList
+          folders={folderOptions}
+          totalCount={entries.length}
+          unfolderedCount={unfolderedCount}
+          countsByFolder={countsByFolder}
+          activeFilter={folderFilter}
+          onSelectFilter={setFolderFilter}
+          onCreateFolder={() => setFolderDraft({ id: null, name: '' })}
+          onRenameFolder={(folder) => setFolderDraft(folder)}
+          onDeleteFolder={(folder) => setDeletingFolder(folder)}
+        />
       </aside>
+
+      {/* Gaveta de pastas (mobile) — destino da aba "Pastas" da BottomNav. */}
+      <Sheet open={isFolderSheetOpen} onOpenChange={setIsFolderSheetOpen}>
+        <SheetContent side="left" className="w-3/4 max-w-[280px] p-0 flex flex-col">
+          <SheetHeader className="p-4 border-b border-slate-200 dark:border-slate-800 text-left space-y-0">
+            {/* O nome acessível da gaveta é o título; a marca é decoração e não
+                repassa o `id` que o Radix injeta, então os dois são separados. */}
+            <SheetTitle className="sr-only">Pastas do Cofre</SheetTitle>
+            <BrandHeader section="Cofre" />
+          </SheetHeader>
+          <VaultFolderList
+            folders={folderOptions}
+            totalCount={entries.length}
+            unfolderedCount={unfolderedCount}
+            countsByFolder={countsByFolder}
+            activeFilter={folderFilter}
+            onSelectFilter={(value) => {
+              setFolderFilter(value);
+              setIsFolderSheetOpen(false);
+            }}
+            onCreateFolder={() => openFolderDialog(() => setFolderDraft({ id: null, name: '' }))}
+            onRenameFolder={(folder) => openFolderDialog(() => setFolderDraft(folder))}
+            onDeleteFolder={(folder) => openFolderDialog(() => setDeletingFolder(folder))}
+            withDropTargets={false}
+            alwaysShowActions
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* Main — pb-16 no mobile reserva a altura da BottomNav fixa (h-16) */}
       <div className={cn('flex-1 flex flex-col overflow-hidden', isMobile && 'pb-16')}>
@@ -298,9 +304,12 @@ export default function Vault() {
             >
               <ChevronLeft className="w-5 h-5" />
             </Button>
+            {/* Abaixo de `lg` o rail não existe: sem esta marca o Cofre ficaria
+                sem identidade em tablet e mobile. O nome do app já aparece
+                dentro dela, então o h1 segue sendo só o rótulo da área. */}
+            <BrandHeader isCollapsed className="lg:hidden shrink-0" />
             <div className="shrink-0">
-              <h1 className="text-xl font-bold text-foreground leading-tight flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-emerald-600 lg:hidden" />
+              <h1 className="text-xl font-bold text-foreground leading-tight">
                 Cofre de Senha
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -338,9 +347,11 @@ export default function Vault() {
             </Button>
           </div>
 
-          {/* Mobile filters */}
-          <div className="flex items-center gap-2 px-3 pb-3 sm:hidden">
-            <div className="relative flex-1">
+          {/* Busca do mobile. O filtro de pasta mora na gaveta da aba "Pastas",
+              como nas Notas — dois controles para a mesma coisa na mesma tela
+              era ruído. */}
+          <div className="px-3 pb-3 sm:hidden">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 value={search}
@@ -349,20 +360,6 @@ export default function Vault() {
                 className="pl-9"
               />
             </div>
-            <Select value={folderFilter} onValueChange={setFolderFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Todas</SelectItem>
-                <SelectItem value={NO_FOLDER}>Sem Pasta</SelectItem>
-                {folderOptions.map((folder) => (
-                  <SelectItem key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -469,7 +466,7 @@ export default function Vault() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {isMobile && isDraggingItem && (
+      {isBelowDesktop && isDraggingItem && (
         <MobileFolderDropBar folders={folderOptions} accent="vault" />
       )}
 
@@ -477,10 +474,13 @@ export default function Vault() {
         <BottomNav
           activeTab="vault"
           onTabChange={(tab) => {
-            // O Cofre não tem drawer de pastas nem modal de busca próprios: o
-            // filtro de pasta e a busca já vivem no cabeçalho mobile desta tela.
-            // As demais abas devolvem o usuário ao Home, que é quem as trata.
-            if (tab === 'notes' || tab === 'folders' || tab === 'search' || tab === 'profile') {
+            // "Pastas" é contextual: aqui abre as pastas do Cofre, e não as de
+            // Notas. A gaveta é transitória, então a aba ativa segue "vault".
+            // A busca vive no cabeçalho desta tela; as demais abas devolvem o
+            // usuário ao Home, que é quem as trata.
+            if (tab === 'folders') {
+              setIsFolderSheetOpen(true);
+            } else if (tab === 'notes' || tab === 'search' || tab === 'profile') {
               navigate('/');
             }
           }}
@@ -488,77 +488,5 @@ export default function Vault() {
       )}
     </div>
     </DragDropContext>
-  );
-}
-
-/**
- * Linha de pasta do Cofre. Quando `droppableId` é informado, a linha vira alvo
- * de soltura do drag & drop.
- * @param {Object} props
- * @returns {JSX.Element}
- */
-function FolderRow({ icon: Icon, label, count, active, onClick, onRename, onDelete, style, droppableId }) {
-  const manageable = onRename || onDelete;
-
-  const row = (dropProvided, dropSnapshot) => (
-    <div
-      ref={dropProvided?.innerRef}
-      {...(dropProvided?.droppableProps || {})}
-      style={style}
-      className={cn(
-        'group w-full flex items-center gap-2 pr-1 rounded-lg text-sm transition-colors',
-        active
-          ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/45 dark:text-emerald-100'
-          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80',
-        dropSnapshot?.isDraggingOver && 'ring-2 ring-emerald-500 dark:ring-emerald-400'
-      )}
-    >
-      {dropProvided && <span className="hidden">{dropProvided.placeholder}</span>}
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex-1 flex items-center gap-2 px-2 py-1.5 min-w-0 text-left"
-      >
-        <Icon className="w-4 h-4 shrink-0" />
-        <span className="flex-1 truncate">{label}</span>
-        {count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
-      </button>
-      {manageable && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0 p-1 rounded text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-slate-700 dark:hover:text-slate-200 transition-opacity"
-              aria-label={`Opções da pasta ${label}`}
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {onRename && (
-              <DropdownMenuItem onClick={onRename}>
-                <Pencil className="w-4 h-4 mr-2" /> Renomear
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <DropdownMenuItem onClick={onDelete} className="text-rose-600 focus:text-rose-600">
-                <Trash2 className="w-4 h-4 mr-2" /> Excluir
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </div>
-  );
-
-  if (!droppableId) {
-    return row(null, null);
-  }
-
-  return (
-    <Droppable droppableId={droppableId} type={DND_TYPE_ITEM}>
-      {(dropProvided, dropSnapshot) => row(dropProvided, dropSnapshot)}
-    </Droppable>
   );
 }

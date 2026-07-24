@@ -4,12 +4,17 @@ import { cn } from '@/lib/utils';
 import { DND_TYPE_ITEM, DROPPABLE_ROOT, folderDroppableId } from '@/lib/dnd';
 
 /**
- * MobileFolderDropBar — faixa de pastas-destino exibida durante um arraste no mobile.
+ * MobileFolderDropBar — faixa de pastas-destino exibida durante um arraste
+ * enquanto os alvos normais estão fora da tela.
  *
- * Por que existe: no mobile os alvos de soltura normais não estão na tela — a
- * Sidebar de Notas fica atrás de um drawer e o painel de pastas do Cofre é
- * `hidden lg:flex`. Sem esta barra, o arraste por toque inicia mas não tem onde
- * terminar.
+ * Por que existe: a Sidebar de Notas fica atrás de um drawer no mobile e o
+ * painel de pastas do Cofre é `hidden lg:flex`. Sem esta barra, o arraste
+ * inicia mas não tem onde terminar.
+ *
+ * Visibilidade: `lg:hidden` acompanha o rail do Cofre, que só existe a partir
+ * de 1024px. Quem decide montar a barra é a página — Notas monta apenas no
+ * mobile (a Sidebar já é alvo a partir de 768px); o Cofre monta em todo
+ * `< lg`. O deslocamento inferior segue a BottomNav, que só existe `< md`.
  *
  * Montagem: precisa estar no DOM **antes** de a biblioteca medir os droppables.
  * Quem controla isso é o `onBeforeCapture` do DragDropContext na página, que é
@@ -30,7 +35,7 @@ export default function MobileFolderDropBar({ folders = [], showRoot = true, acc
 
   return (
     <div
-      className="fixed bottom-16 left-0 right-0 z-40 md:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-2 py-2"
+      className="fixed bottom-16 md:bottom-0 left-0 right-0 z-40 lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-2 py-2"
       role="region"
       aria-label="Solte em uma pasta"
     >

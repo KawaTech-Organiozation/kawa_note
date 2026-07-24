@@ -14,12 +14,15 @@ import { cn } from '@/lib/utils';
  * @returns {JSX.Element} Bottom navigation bar
  */
 export default function BottomNav({ activeTab = 'notes', onTabChange = () => {} }) {
+  // Ordem por alcance do polegar: o que se usa mais fica à direita.
+  // "Pastas" é contextual — abre as pastas da área em que o usuário está
+  // (Notas ou Cofre); quem decide o que abrir é a página.
   const tabs = [
-    { id: 'notes', label: 'Notas', icon: FileText },
-    { id: 'folders', label: 'Pastas', icon: FolderOpen },
+    { id: 'profile', label: 'Perfil', icon: User },
     { id: 'search', label: 'Busca', icon: Search },
     { id: 'vault', label: 'Cofre', icon: KeyRound },
-    { id: 'profile', label: 'Perfil', icon: User }
+    { id: 'notes', label: 'Notas', icon: FileText },
+    { id: 'folders', label: 'Pastas', icon: FolderOpen }
   ];
 
   return (

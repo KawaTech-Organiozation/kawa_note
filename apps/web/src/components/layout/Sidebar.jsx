@@ -26,7 +26,7 @@ import {
 import { Droppable } from "@hello-pangea/dnd";
 import ModeSwitch from "./ModeSwitch";
 import { DND_TYPE_ITEM, DROPPABLE_ROOT, folderDroppableId } from "@/lib/dnd";
-import { KAWATECH_ASSETS, BRAND_NAMES } from "@/lib/brand";
+import BrandHeader from "./BrandHeader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,27 +127,39 @@ function FolderItem({ folder, selectedFolder, onSelect, onDeleteFolder, level = 
   };
 
   if (isCollapsed) {
+    // Recolhida ou expandida, a pasta precisa ser alvo de soltura: o estado de
+    // colapso é persistido, e sem este Droppable o arraste começa sem ter onde
+    // terminar. O ref do droppable fica num wrapper próprio para não disputar o
+    // ref que o TooltipTrigger `asChild` injeta na linha.
     return (
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              onClick={() => onSelect(folder)}
-              className={cn(
-                "flex items-center justify-center p-2 rounded-lg cursor-pointer transition-colors",
-                selectedFolder?.id === folder.id
-                  ? "bg-indigo-100 text-indigo-900 dark:bg-fuchsia-950/45 dark:text-fuchsia-100"
-                  : colorClasses[/** @type {keyof typeof colorClasses} */ (folder.color) || 'slate']
-              )}
-            >
-              <FolderIconComponent className="w-5 h-5 shrink-0" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>{folder.name} {notesCount > 0 && `(${notesCount})`}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Droppable droppableId={folderDroppableId(folder.id)} type={DND_TYPE_ITEM}>
+        {(dropProvided, dropSnapshot) => (
+          <div ref={dropProvided.innerRef} {...dropProvided.droppableProps}>
+            <span className="hidden">{dropProvided.placeholder}</span>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    onClick={() => onSelect(folder)}
+                    className={cn(
+                      "flex items-center justify-center p-2 rounded-lg cursor-pointer transition-colors",
+                      selectedFolder?.id === folder.id
+                        ? "bg-indigo-100 text-indigo-900 dark:bg-fuchsia-950/45 dark:text-fuchsia-100"
+                        : colorClasses[/** @type {keyof typeof colorClasses} */ (folder.color) || 'slate'],
+                      dropSnapshot.isDraggingOver && "ring-2 ring-indigo-500 dark:ring-fuchsia-400 bg-indigo-50 dark:bg-fuchsia-950/30"
+                    )}
+                  >
+                    <FolderIconComponent className="w-5 h-5 shrink-0" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{folder.name} {notesCount > 0 && `(${notesCount})`}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+      </Droppable>
     );
   }
 
@@ -388,36 +400,7 @@ function SidebarContent({
     <>
       {/* Header */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-        {/* Marca KawaTech sobre a cor primária (#282b5f): fundo escuro exige o
-            ÍCONE/LOGO NEGATIVO, conforme a regra de escolha do asset. */}
-        {isCollapsed ? (
-          <div className="flex items-center justify-center">
-            <div className="h-8 w-8 rounded-lg bg-kawatech-primary flex items-center justify-center overflow-hidden">
-              <img
-                src={KAWATECH_ASSETS.iconeNegativo}
-                alt="KawaTech"
-                className="h-5 w-5 object-contain"
-                width="20"
-                height="20"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-kawatech-primary flex items-center justify-center overflow-hidden">
-              <img
-                src={KAWATECH_ASSETS.iconeNegativo}
-                alt="KawaTech"
-                className="h-5 w-5 object-contain"
-                width="20"
-                height="20"
-              />
-            </div>
-            <div>
-              <h1 className="font-bold text-foreground">{BRAND_NAMES.appName}</h1>
-            </div>
-          </div>
-        )}
+        <BrandHeader isCollapsed={isCollapsed} className={isCollapsed ? undefined : 'mb-4'} />
 
         {/* Alternância Notas ↔ Cofre (substitui a antiga entrada do Cofre na
             lista de pastas — ver PLAN-20260723-001, decisão D4). */}

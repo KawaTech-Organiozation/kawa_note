@@ -1,5 +1,5 @@
 import { Draggable, Droppable } from '@hello-pangea/dnd';
-import { KeyRound, ChevronRight, AlertTriangle } from 'lucide-react';
+import { KeyRound, ChevronRight, AlertTriangle, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { avatarColorClass, hasHealthIssue } from '@/lib/vaultUi';
 import { DND_TYPE_ITEM, DROPPABLE_LIST } from '@/lib/dnd';
@@ -41,14 +41,26 @@ export default function VaultList({ entries = [], activeId = null, onSelect, hea
           <li
             ref={provided.innerRef}
             {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={snapshot.isDragging ? 'opacity-90 shadow-lg rounded-lg bg-white dark:bg-slate-900' : undefined}
+            className={cn(
+              'flex items-stretch',
+              snapshot.isDragging && 'opacity-90 shadow-lg rounded-lg bg-white dark:bg-slate-900'
+            )}
           >
+            {/* Alça dedicada: `dragHandleProps` no mesmo elemento que o
+                `<button>` de seleção criava botão dentro de botão e dois
+                pontos de foco por item (WCAG 2.1 AA — critério de HALT). */}
+            <div
+              {...provided.dragHandleProps}
+              aria-label={`Mover credencial: ${entry.title || 'Sem título'}`}
+              className="shrink-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:focus-visible:ring-emerald-400"
+            >
+              <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
+            </div>
             <button
               type="button"
               onClick={() => onSelect(entry)}
               className={cn(
-                'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                'flex-1 min-w-0 flex items-center gap-3 pl-1 pr-4 py-3 text-left transition-colors',
                 activeId === entry.id
                   ? 'bg-emerald-50 dark:bg-emerald-950/30'
                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'

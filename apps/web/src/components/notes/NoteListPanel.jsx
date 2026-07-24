@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
-import { Brain, Plus, Loader2 } from 'lucide-react';
+import { Brain, Plus, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import NoteListItem from './NoteListItem';
 import { DND_TYPE_ITEM, DROPPABLE_LIST } from '@/lib/dnd';
 
@@ -162,9 +163,14 @@ export default function NoteListPanel({
 /**
  * Envolve um NoteListItem num Draggable.
  *
- * O handle é a linha inteira: `dragHandleProps` vai no mesmo elemento que
- * `draggableProps`. O clique continua funcionando porque a biblioteca só
- * inicia o arraste após deslocamento (mouse) ou long-press (toque).
+ * O handle é uma alça própria, e não a linha inteira. `dragHandleProps` injeta
+ * `role="button"` e `tabIndex=0`; no mesmo elemento que o card — que já é um
+ * `role="button"` com seus próprios botões de fixar/excluir — isso produzia
+ * controles aninhados, dois pontos de foco por item e anúncio duplicado em
+ * leitor de tela (WCAG 2.1 AA é critério de HALT da governança de frontend).
+ *
+ * A alça fica sempre visível, e não só no hover: no toque não existe hover, e
+ * arrastar é uma das interações principais da lista no mobile.
  *
  * @param {Object} props
  * @param {import('@/types/models').Note} props.note - Nota renderizada
@@ -182,16 +188,27 @@ function DraggableNote({ note, index, isActive, onSelectNote, onDeleteNote, onTo
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={snapshot.isDragging ? 'opacity-90 rounded-lg shadow-lg' : undefined}
+          className={cn(
+            'flex items-stretch',
+            snapshot.isDragging && 'opacity-90 rounded-lg shadow-lg'
+          )}
         >
-          <NoteListItem
-            note={note}
-            isActive={isActive}
-            onClick={() => onSelectNote(note)}
-            onDelete={onDeleteNote}
-            onTogglePin={onTogglePin}
-          />
+          <div
+            {...provided.dragHandleProps}
+            aria-label={`Mover nota: ${note.title || 'Sem título'}`}
+            className="shrink-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:focus-visible:ring-fuchsia-400"
+          >
+            <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <NoteListItem
+              note={note}
+              isActive={isActive}
+              onClick={() => onSelectNote(note)}
+              onDelete={onDeleteNote}
+              onTogglePin={onTogglePin}
+            />
+          </div>
         </div>
       )}
     </Draggable>
