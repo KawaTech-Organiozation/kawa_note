@@ -7,30 +7,40 @@
 # STAGE 1: deps
 # Responsibility: Install dependencies with maximum cache efficiency
 # -----------------------------------------------------------------------------
-FROM node:20-alpine AS deps
+# Debian slim (glibc), nao alpine (musl): o package-lock.json e gerado em glibc
+# e registra o binario do Rollup para essa plataforma. Em alpine, `npm ci` nao
+# baixa a variante musl e o build quebra com
+# "Cannot find module @rollup/rollup-linux-x64-musl".
+# `slim` em vez do node:20 completo: mesma glibc, ~200MB em vez de ~1.1GB.
+# Os stages de build sao descartados; a imagem final continua sendo nginx:alpine.
+FROM node:20-slim AS deps
 
 WORKDIR /app
 
-# Copy package files for optimal layer caching
-COPY package*.json ./
+# Monorepo npm workspaces: lockfile unico na raiz, entao o contexto de build
+# e a raiz. Copiar so os manifests primeiro preserva o cache de camada.
+COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/
 
-# `npm ci` (e não `npm install`) é o que de fato garante determinismo: instala
-# exatamente o que está no package-lock.json e falha se os dois divergirem.
-RUN npm ci && npm cache clean --force
+# `npm ci` (e nao `npm install`) e o que de fato garante determinismo: instala
+# exatamente o que esta no package-lock.json e falha se os dois divergirem.
+# O cache mount mantem o store do npm entre builds.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci -w @kawa-note/web
 
 # -----------------------------------------------------------------------------
 # STAGE 2: build
 # Responsibility: Compile the application
 # -----------------------------------------------------------------------------
-FROM node:20-alpine AS build
+FROM node:20-slim AS build
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
+# Dependencias ficam hoisted na raiz do workspace.
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy source code
-COPY . .
+COPY package.json package-lock.json ./
+COPY apps/web ./apps/web
 
 # Accept build arguments for environment variables
 ARG VITE_APP_NAME=KawaMyCenter
@@ -47,6 +57,7 @@ ENV VITE_KAWA_APP_BASE_URL=${VITE_KAWA_APP_BASE_URL}
 ENV VITE_CEP_API_URL=${VITE_CEP_API_URL}
 
 # Build the application
+WORKDIR /app/apps/web
 RUN npm run build
 
 # -----------------------------------------------------------------------------
@@ -56,10 +67,10 @@ RUN npm run build
 FROM nginx:alpine AS runtime
 
 # Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 
 # Create non-root user for nginx (nginx user already exists in nginx image)
 RUN addgroup -g 1001 -S nginx-app && adduser -S nginx-app -u 1001

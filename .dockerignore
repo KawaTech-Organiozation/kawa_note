@@ -63,3 +63,11 @@ docker-compose.yml
 *.pem
 *.cert
 *.key
+
+# Monorepo: o contexto de build e a raiz, entao excluir o que nao serve a
+# nenhuma imagem e o node_modules de cada workspace.
+apps/*/node_modules
+apps/*/dist
+.Agent
+.github
+docker-compose*.yml

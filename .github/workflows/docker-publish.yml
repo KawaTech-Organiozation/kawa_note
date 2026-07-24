@@ -25,18 +25,18 @@ jobs:
         include:
           # SPA React servida por nginx.
           - service: frontend
-            context: ./apps/web
+            context: .
             file: ./apps/web/Dockerfile
             target: runtime
           # API Fastify.
           - service: backend
-            context: ./apps/api
+            context: .
             file: ./apps/api/Dockerfile
             target: runtime
           # Container efêmero de migration: roda `prisma migrate deploy` e o
           # seed de planos, depois encerra.
           - service: backend-migrate
-            context: ./apps/api
+            context: .
             file: ./apps/api/Dockerfile
             target: migrate
 
