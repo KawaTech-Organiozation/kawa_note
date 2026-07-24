@@ -39,10 +39,6 @@ In Portainer, create a new Stack and configure these environment variables:
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
 | `DOCKER_NETWORK_NAME` | External Docker network name | `kawatech-network` |
-| `DOCKER_NETWORK_SUBNET` | Network subnet CIDR | `10.10.0.0/16` |
-| `IP_KAWA_DB` | Static IP for PostgreSQL | `10.10.0.10` |
-| `IP_KAWA_MIGRATE` | Static IP for migration container | `10.10.0.11` |
-| `IP_KAWA_API` | Static IP for API container | `10.10.0.20` |
 | `DB_USER` | PostgreSQL username | `kawa_user` |
 | `DB_PASSWORD` | PostgreSQL password | `YourSecurePassword123!` |
 | `DB_NAME` | PostgreSQL database name | `kawa_mycenter` |
