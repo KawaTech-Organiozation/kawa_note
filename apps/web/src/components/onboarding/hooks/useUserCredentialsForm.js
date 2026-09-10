@@ -3,6 +3,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { setAppToken } from '@/lib/app-params';
+import { authApi } from '@/api/client';
+import { initializeEncryption } from '@/lib/keyManager';
+import { createEncryptionVerifier, generateSalt } from '@/lib/crypto';
 
 /**
  * Validation schema for user credentials
@@ -64,7 +67,24 @@ export function useUserCredentialsForm(tenantId, onSuccess, onError) {
         throw new Error(error.error?.message || 'Erro ao criar credenciais');
       }
 
-      return response.json();
+      const result = await response.json();
+
+      // The onboarding response already authenticates the new user. Initialize
+      // the encryption key here as well, otherwise the first navigation to the
+      // app incorrectly shows the unlock screen with no verifier to validate.
+      if (result.data?.accessToken) {
+        setAppToken(result.data.accessToken);
+        if (result.data.refreshToken) {
+          localStorage.setItem('kawa_refresh_token', result.data.refreshToken);
+        }
+
+        const salt = await generateSalt();
+        const key = await initializeEncryption(data.password, salt);
+        const verifier = await createEncryptionVerifier(key);
+        await authApi.updateEncryptionSalt(salt, verifier);
+      }
+
+      return result;
     },
     onSuccess: (response) => {
       if (response.data?.accessToken) {
@@ -80,6 +100,9 @@ export function useUserCredentialsForm(tenantId, onSuccess, onError) {
 
   const onSubmit = async (data) => {
     try {
+      // Clear a previous server error before retrying (e.g. after replacing a
+      // document that was already registered).
+      onError?.(null);
       await createCredentialsMutation.mutateAsync(data);
     } catch (error) {
       console.error('Form submission error:', error);

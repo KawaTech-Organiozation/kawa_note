@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -98,6 +98,25 @@ export function useIdentificationForm(onSuccess, onError) {
       onError?.(errorMessage);
     }
   });
+
+  // A duplicate-document error belongs to the value that was submitted. Clear
+  // it as soon as the user starts replacing that document, instead of keeping
+  // the stale message visible for the new value.
+  const documentValue = form.watch('document');
+  const previousDocument = useRef(documentValue);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    if (previousDocument.current !== documentValue) {
+      previousDocument.current = documentValue;
+      createTenantMutation.reset();
+      onErrorRef.current?.(null);
+    }
+  }, [documentValue, createTenantMutation]);
 
   const onSubmit = async (data) => {
     try {

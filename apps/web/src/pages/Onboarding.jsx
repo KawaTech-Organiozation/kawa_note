@@ -67,6 +67,7 @@ export default function Onboarding() {
    */
   const handleTenantCreated = (newTenantId) => {
     console.log('✅ Tenant created:', newTenantId);
+    setError(null);
     setTenantId(newTenantId);
     setCurrentStep('STEP_2');
   };
@@ -75,6 +76,7 @@ export default function Onboarding() {
    * Handle successful user credentials update
    */
   const handleUserCredentialsUpdated = () => {
+    setError(null);
     setCurrentStep('STEP_3');
   };
 
@@ -82,6 +84,7 @@ export default function Onboarding() {
    * Handle successful plan selection
    */
   const handlePlanSelected = () => {
+    setError(null);
     setCurrentStep('STEP_4');
   };
 
