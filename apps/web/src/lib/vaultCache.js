@@ -20,6 +20,7 @@ const STORE_META = 'meta';
 
 /** Chave do cursor de sincronização dentro do store de metadados. */
 const META_LAST_SYNC = 'lastSyncedAt';
+const META_OWNER = 'ownerKey';
 
 let dbPromise = null;
 
@@ -75,6 +76,43 @@ export async function readCachedNotes() {
     // Cache é otimização, nunca fonte de verdade: falhar aqui só significa
     // que a próxima sincronização será completa.
     return [];
+  }
+}
+
+/**
+ * Garante que o cache local pertence ao usuário/tenant autenticado.
+ *
+ * O IndexedDB é global para a origem do navegador. Sem um marcador de dono,
+ * uma troca de conta pode reaproveitar `lastSyncedAt` de outro usuário e fazer
+ * o delta pular credenciais antigas que existem no banco, mas nunca entraram
+ * no cache deste login.
+ *
+ * @param {string|null|undefined} ownerKey - Identificador estável do usuário/tenant
+ * @returns {Promise<void>}
+ */
+export async function ensureVaultCacheOwner(ownerKey) {
+  if (!ownerKey) return;
+
+  try {
+    const db = await openDb();
+    const existing = await toPromise(
+      db.transaction(STORE_META, 'readonly').objectStore(STORE_META).get(META_OWNER)
+    );
+
+    if (existing === ownerKey) return;
+
+    const tx = db.transaction([STORE_NOTES, STORE_META], 'readwrite');
+    tx.objectStore(STORE_NOTES).clear();
+    tx.objectStore(STORE_META).clear();
+    tx.objectStore(STORE_META).put(ownerKey, META_OWNER);
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(undefined);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch {
+    // Cache é otimização; se falhar, o sync completo ainda busca a verdade na API.
   }
 }
 

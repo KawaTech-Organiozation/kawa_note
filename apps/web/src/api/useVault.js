@@ -4,7 +4,8 @@ import { encryptNoteData, decryptNoteData } from './useNotes';
 import { checkAndHandleEncryptionError } from '@/lib/errorHandlers';
 import { getKey } from '@/lib/keyManager';
 import { decryptBatch } from '@/lib/decryptPool';
-import { readCachedNotes, readLastSyncedAt, applyCachedDelta } from '@/lib/vaultCache';
+import { readCachedNotes, readLastSyncedAt, applyCachedDelta, clearVaultCache, ensureVaultCacheOwner } from '@/lib/vaultCache';
+import { useAuth } from '@/components/providers/AuthContext';
 import {
   CREDENTIAL_NOTE_TYPE,
   credentialToNotePayload,
@@ -35,13 +36,17 @@ const VAULT_SYNC_LIMIT = 500;
  * @returns {import('@tanstack/react-query').UseQueryResult}
  */
 export const useVaultEntries = () => {
+  const { user } = useAuth();
+  const ownerKey = user?.tenantId && user?.id ? `${user.tenantId}:${user.id}` : null;
+
   return useQuery({
-    queryKey: [VAULT_QUERY_KEY, 'list'],
+    queryKey: [VAULT_QUERY_KEY, 'list', ownerKey],
     queryFn: async () => {
-      const rows = await loadCredentialRows();
+      const rows = await loadCredentialRows(ownerKey);
       const entries = await decryptCredentialRows(rows);
       return { data: entries, total: entries.length };
     },
+    enabled: Boolean(ownerKey),
     staleTime: 1000 * 60 * 5
   });
 };
@@ -55,7 +60,8 @@ export const useVaultEntries = () => {
  *
  * @returns {Promise<Array>} Linhas ainda cifradas
  */
-async function loadCredentialRows() {
+async function loadCredentialRows(ownerKey) {
+  await ensureVaultCacheOwner(ownerKey);
   const cached = await readCachedNotes();
   const byId = new Map(cached.map((note) => [note.id, note]));
 
@@ -133,7 +139,10 @@ async function decryptCredentialRows(rows) {
   return Promise.all(rows.map(async (note) => noteToCredential(await decryptNoteData(note))));
 }
 
-function invalidateVault(queryClient) {
+async function invalidateVault(queryClient) {
+  // After writes, rebuild from the API. This prevents local ciphertext cache
+  // from masking a failed/partial DB synchronization on another device.
+  await clearVaultCache();
   queryClient.invalidateQueries({ queryKey: [VAULT_QUERY_KEY] });
   queryClient.invalidateQueries({ queryKey: [NOTES_QUERY_KEY] });
   queryClient.invalidateQueries({ queryKey: [FOLDERS_QUERY_KEY] });
