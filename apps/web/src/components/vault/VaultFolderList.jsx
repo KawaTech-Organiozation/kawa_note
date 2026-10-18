@@ -90,27 +90,39 @@ export default function VaultFolderList({
           <FolderPlus className="w-4 h-4" />
         </button>
       </div>
-      {folders.map((folder, index) => (
-        <Draggable key={folder.id} draggableId={folderDroppableId(folder.id)} index={index} type={DND_TYPE_FOLDER}>
-          {(dragProvided) => (
-            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
-              <FolderRow
-                icon={FolderClosed}
-                label={folder.name}
-                count={countsByFolder?.get(folder.id) ?? 0}
-                active={activeFilter === folder.id}
-                onClick={() => onSelectFilter(folder.id)}
-                onRename={() => onRenameFolder({ id: folder.id, name: folder.name, parentFolderId: folder.parentFolderId })}
-                onDelete={() => onDeleteFolder({ id: folder.id, name: folder.name })}
-                style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
-                droppableId={withDropTargets ? folderDroppableId(folder.id) : undefined}
-                alwaysShowActions={alwaysShowActions}
-                dragHandleProps={dragProvided.dragHandleProps}
-              />
-            </div>
-          )}
-        </Draggable>
-      ))}
+      {folders.map((folder, index) => {
+        const row = (dragHandleProps) => (
+          <FolderRow
+            icon={FolderClosed}
+            label={folder.name}
+            count={countsByFolder?.get(folder.id) ?? 0}
+            active={activeFilter === folder.id}
+            onClick={() => onSelectFilter(folder.id)}
+            onRename={() => onRenameFolder({ id: folder.id, name: folder.name, parentFolderId: folder.parentFolderId })}
+            onDelete={() => onDeleteFolder({ id: folder.id, name: folder.name })}
+            style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
+            droppableId={withDropTargets ? folderDroppableId(folder.id) : undefined}
+            alwaysShowActions={alwaysShowActions}
+            dragHandleProps={dragHandleProps}
+          />
+        );
+
+        // The mobile drawer is mounted alongside the desktop rail. It must not
+        // register the same draggable ids a second time in hello-pangea/dnd.
+        if (!withDropTargets) {
+          return <div key={folder.id}>{row(undefined)}</div>;
+        }
+
+        return (
+          <Draggable key={folder.id} draggableId={folderDroppableId(folder.id)} index={index} type={DND_TYPE_FOLDER}>
+            {(dragProvided) => (
+              <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
+                {row(dragProvided.dragHandleProps)}
+              </div>
+            )}
+          </Draggable>
+        );
+      })}
       {folders.length === 0 && (
         <p className="px-2 py-1 text-xs text-slate-400">Nenhuma pasta ainda.</p>
       )}
