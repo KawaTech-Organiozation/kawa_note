@@ -29,8 +29,12 @@ export const apiClient = {
    * @returns {Promise<ApiResponse<T>>}
    */
   async request(endpoint, options = {}) {
+    // Some endpoints are optional (for example, public app settings). Keep
+    // their expected 404s out of the global error log without changing the
+    // request semantics or the error that callers can handle.
+    const { silent = false, ...fetchOptions } = options;
     const url = `${API_BASE_URL}${endpoint}`;
-    console.log('📡 API Request:', { method: options.method || 'GET', url });
+    console.log('📡 API Request:', { method: fetchOptions.method || 'GET', url });
     
     const headers = {
       'Content-Type': 'application/json',
@@ -41,7 +45,7 @@ export const apiClient = {
 
     try {
       const response = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         headers,
         credentials: 'include' // Include cookies for httpOnly token support
       });
@@ -93,7 +97,9 @@ export const apiClient = {
 
       return response.json();
     } catch (error) {
-      console.error('❌ API Error:', { url, error: error.message });
+      if (!silent) {
+        console.error('❌ API Error:', { url, error: error.message });
+      }
       throw error;
     }
   },

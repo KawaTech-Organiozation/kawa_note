@@ -90,7 +90,10 @@ export const AuthProvider = ({ children }) => {
       try {
         // Only fetch public settings if appId is provided
         if (appParams.appId) {
-          const publicSettings = await apiClient.get(`/apps/public/prod/public-settings/by-id/${appParams.appId}`);
+          const publicSettings = await apiClient.get(
+            `/apps/public/prod/public-settings/by-id/${appParams.appId}`,
+            { silent: true }
+          );
           setAppPublicSettings(publicSettings);
         }
         
@@ -105,7 +108,11 @@ export const AuthProvider = ({ children }) => {
         }
         setIsLoadingPublicSettings(false);
       } catch (appError) {
-        console.error('❌ App error:', appError);
+        // Public settings are optional. A missing app record must never block
+        // login or access to Notes/Vault; only non-404 failures are actionable.
+        if (appError.status !== 404) {
+          console.error('❌ App error:', appError);
+        }
         const { shouldContinue, error } = handleAppError(appError);
         
         if (shouldContinue) {
