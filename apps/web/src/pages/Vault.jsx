@@ -290,17 +290,19 @@ export default function Vault() {
           />
         </div>
 
-        <VaultFolderList
-          folders={folderOptions}
-          totalCount={entries.length}
-          unfolderedCount={unfolderedCount}
-          countsByFolder={countsByFolder}
-          activeFilter={folderFilter}
-          onSelectFilter={setFolderFilter}
-          onCreateFolder={() => setFolderDraft({ id: null, name: '' })}
-          onRenameFolder={(folder) => setFolderDraft(folder)}
-          onDeleteFolder={(folder) => setDeletingFolder(folder)}
-        />
+        {!isBelowDesktop && (
+          <VaultFolderList
+            folders={folderOptions}
+            totalCount={entries.length}
+            unfolderedCount={unfolderedCount}
+            countsByFolder={countsByFolder}
+            activeFilter={folderFilter}
+            onSelectFilter={setFolderFilter}
+            onCreateFolder={() => setFolderDraft({ id: null, name: '' })}
+            onRenameFolder={(folder) => setFolderDraft(folder)}
+            onDeleteFolder={(folder) => setDeletingFolder(folder)}
+          />
+        )}
       </aside>
 
       {/* Gaveta de pastas (mobile) — destino da aba "Pastas" da BottomNav. */}
