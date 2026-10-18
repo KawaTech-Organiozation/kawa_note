@@ -1,4 +1,4 @@
-import { Droppable } from '@hello-pangea/dnd';
+import { Draggable, Droppable } from '@hello-pangea/dnd';
 import {
   FolderClosed,
   FolderPlus,
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { DND_TYPE_ITEM, DROPPABLE_ROOT, folderDroppableId } from '@/lib/dnd';
+import { DND_TYPE_ITEM, DND_TYPE_FOLDER, DROPPABLE_ROOT, folderDroppableId } from '@/lib/dnd';
 
 /** Filtro "todas as credenciais". */
 export const ALL = '__all__';
@@ -90,20 +90,26 @@ export default function VaultFolderList({
           <FolderPlus className="w-4 h-4" />
         </button>
       </div>
-      {folders.map((folder) => (
-        <FolderRow
-          key={folder.id}
-          icon={FolderClosed}
-          label={folder.name}
-          count={countsByFolder?.get(folder.id) ?? 0}
-          active={activeFilter === folder.id}
-          onClick={() => onSelectFilter(folder.id)}
-          onRename={() => onRenameFolder({ id: folder.id, name: folder.name })}
-          onDelete={() => onDeleteFolder({ id: folder.id, name: folder.name })}
-          style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
-          droppableId={withDropTargets ? folderDroppableId(folder.id) : undefined}
-          alwaysShowActions={alwaysShowActions}
-        />
+      {folders.map((folder, index) => (
+        <Draggable key={folder.id} draggableId={folderDroppableId(folder.id)} index={index} type={DND_TYPE_FOLDER}>
+          {(dragProvided) => (
+            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
+              <FolderRow
+                icon={FolderClosed}
+                label={folder.name}
+                count={countsByFolder?.get(folder.id) ?? 0}
+                active={activeFilter === folder.id}
+                onClick={() => onSelectFilter(folder.id)}
+                onRename={() => onRenameFolder({ id: folder.id, name: folder.name, parentFolderId: folder.parentFolderId })}
+                onDelete={() => onDeleteFolder({ id: folder.id, name: folder.name })}
+                style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
+                droppableId={withDropTargets ? folderDroppableId(folder.id) : undefined}
+                alwaysShowActions={alwaysShowActions}
+                dragHandleProps={dragProvided.dragHandleProps}
+              />
+            </div>
+          )}
+        </Draggable>
       ))}
       {folders.length === 0 && (
         <p className="px-2 py-1 text-xs text-slate-400">Nenhuma pasta ainda.</p>
@@ -128,7 +134,8 @@ function FolderRow({
   onDelete,
   style,
   droppableId,
-  alwaysShowActions = false
+  alwaysShowActions = false,
+  dragHandleProps
 }) {
   const manageable = onRename || onDelete;
 
@@ -155,6 +162,9 @@ function FolderRow({
         <span className="flex-1 truncate">{label}</span>
         {count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
       </button>
+      {dragHandleProps && (
+        <button type="button" {...dragHandleProps} aria-label={`Mover pasta ${label}`} className="shrink-0 cursor-grab px-1 text-slate-400">⋮⋮</button>
+      )}
       {manageable && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

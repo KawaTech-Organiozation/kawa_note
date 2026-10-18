@@ -14,6 +14,7 @@ import Login from '@/pages/Login';
 import Onboarding from '@/pages/Onboarding';
 import { useState, useEffect } from 'react';
 import { tenantsApi } from '@/api/client';
+import VaultShare from '@/pages/VaultShare';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -159,6 +160,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginRoute />} />
+              <Route path="/share/:id" element={<VaultShare />} />
 
               {/* Onboarding route (requires authentication) */}
               <Route path="/onboarding" element={<OnboardingRoute />} />

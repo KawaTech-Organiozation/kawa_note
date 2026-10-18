@@ -38,7 +38,7 @@ import MobileFolderDropBar from '@/components/layout/MobileFolderDropBar';
 import ModeSwitch from '@/components/layout/ModeSwitch';
 import { useIsMobile, useIsBelowDesktop } from '@/hooks/useMobile';
 import { useMoveToFolder } from '@/api/useMoveToFolder';
-import { parseFolderDroppableId } from '@/lib/dnd';
+import { parseFolderDroppableId, DND_TYPE_FOLDER } from '@/lib/dnd';
 import { useVaultEntries } from '@/api/useVault';
 import { useFolderHierarchy, useCreateFolder, useUpdateFolder, useDeleteFolder } from '@/api/useFolders';
 import { computeVaultHealth } from '@/lib/vaultUi';
@@ -48,11 +48,18 @@ import VaultDetailPanel from '@/components/vault/VaultDetailPanel';
 import VaultEntryDialog from '@/components/vault/VaultEntryDialog';
 import PasswordGenerator from '@/components/vault/PasswordGenerator';
 import ImportWizardDialog from '@/components/import/ImportWizardDialog';
+import VaultShareDialog from '@/components/vault/VaultShareDialog';
 
-function flattenFolders(items, level = 0, result = []) {
+const SORT_OPTIONS = {
+  updated_desc: (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0) || a.id.localeCompare(b.id),
+  updated_asc: (a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0) || a.id.localeCompare(b.id),
+  title_asc: (a, b) => (a.title || '').localeCompare(b.title || '', 'pt-BR') || a.id.localeCompare(b.id)
+};
+
+function flattenFolders(items, level = 0, result = [], parentFolderId = null) {
   for (const item of items) {
-    result.push({ id: item.id, name: item.name, level });
-    if (item.children?.length) flattenFolders(item.children, level + 1, result);
+    result.push({ id: item.id, name: item.name, level, parentFolderId });
+    if (item.children?.length) flattenFolders(item.children, level + 1, result, item.id);
   }
   return result;
 }
@@ -69,6 +76,7 @@ export default function Vault() {
   // barra de destinos passa a ser o único alvo de soltura da tela.
   const isBelowDesktop = useIsBelowDesktop();
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('updated_desc');
   const [folderFilter, setFolderFilter] = useState(ALL);
   const [activeId, setActiveId] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,6 +90,7 @@ export default function Vault() {
   // Gaveta de pastas do mobile — é o que a aba "Pastas" da BottomNav abre
   // quando o usuário está no Cofre. O rail equivalente é `hidden lg:flex`.
   const [isFolderSheetOpen, setIsFolderSheetOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const { data: vaultData = { data: [] }, isLoading, refetch } = useVaultEntries();
   const { data: foldersResponse = { data: [] } } = useFolderHierarchy('vault');
@@ -103,6 +112,21 @@ export default function Vault() {
 
     const { draggableId, destination } = result;
     if (!destination) return;
+
+    if (result.type === DND_TYPE_FOLDER) {
+      const movedFolderId = draggableId.replace('folder:', '');
+      const destinationInfo = parseFolderDroppableId(destination.droppableId);
+      const parentFolderId = destinationInfo.isFolder ? destinationInfo.folderId : null;
+      const movedFolder = folderOptions.find((folder) => folder.id === movedFolderId);
+      if (!movedFolder || movedFolder.parentFolderId === parentFolderId || movedFolder.id === parentFolderId) return;
+      try {
+        await updateFolder.mutateAsync({ id: movedFolderId, data: { parentFolderId } });
+        toast.success('Pasta movida');
+      } catch (error) {
+        toast.error(error?.data?.error?.message || error?.message || 'Não foi possível mover a pasta');
+      }
+      return;
+    }
 
     const { isFolder, folderId } = parseFolderDroppableId(destination.droppableId);
     if (!isFolder) return;
@@ -127,10 +151,26 @@ export default function Vault() {
     () => flattenFolders(foldersResponse?.data || []),
     [foldersResponse?.data]
   );
+  const shareFolder = useMemo(() => folderOptions.find((folder) => folder.id === folderFilter) || null, [folderOptions, folderFilter]);
+  const shareEntries = useMemo(() => {
+    if (!shareFolder) return [];
+    const ids = new Set([shareFolder.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const folder of folderOptions) {
+        if (folder.parentFolderId && ids.has(folder.parentFolderId) && !ids.has(folder.id)) {
+          ids.add(folder.id);
+          changed = true;
+        }
+      }
+    }
+    return entries.filter((entry) => ids.has(entry.folderId));
+  }, [entries, folderOptions, shareFolder]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return entries.filter((entry) => {
+    const result = entries.filter((entry) => {
       if (folderFilter === NO_FOLDER && entry.folderId) return false;
       if (folderFilter !== ALL && folderFilter !== NO_FOLDER && entry.folderId !== folderFilter) return false;
       if (!term) return true;
@@ -142,7 +182,8 @@ export default function Vault() {
         entry.tags?.some((tag) => tag.toLowerCase().includes(term))
       );
     });
-  }, [entries, search, folderFilter]);
+    return result.sort(SORT_OPTIONS[sort]);
+  }, [entries, search, folderFilter, sort]);
 
   const activeEntry = useMemo(
     () => filtered.find((entry) => entry.id === activeId) || entries.find((entry) => entry.id === activeId) || null,
@@ -329,6 +370,17 @@ export default function Vault() {
               />
             </div>
 
+            <select
+              aria-label="Ordenar credenciais"
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              className="hidden md:block h-9 rounded-md border border-slate-200 bg-background px-2 text-sm dark:border-slate-700"
+            >
+              <option value="updated_desc">Mais recentes</option>
+              <option value="updated_asc">Mais antigas</option>
+              <option value="title_asc">A–Z</option>
+            </select>
+
             <PasswordGenerator
               trigger={
                 <Button variant="outline" className="shrink-0" title="Gerar senha">
@@ -337,6 +389,11 @@ export default function Vault() {
                 </Button>
               }
             />
+            {shareFolder && (
+              <Button variant="outline" className="shrink-0" onClick={() => setShareOpen(true)} title="Compartilhar pasta">
+                <span className="hidden md:inline">Compartilhar</span><span className="md:hidden">Link</span>
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setImportOpen(true)} className="shrink-0">
               <Upload className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Importar</span>
@@ -418,6 +475,10 @@ export default function Vault() {
       />
 
       <ImportWizardDialog open={importOpen} onOpenChange={setImportOpen} onImported={refetch} />
+
+      {shareFolder && (
+        <VaultShareDialog open={shareOpen} onOpenChange={setShareOpen} folder={shareFolder} entries={shareEntries} />
+      )}
 
       {/* Create / rename vault folder */}
       <Dialog open={!!folderDraft} onOpenChange={(open) => !open && setFolderDraft(null)}>

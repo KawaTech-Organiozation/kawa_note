@@ -12,10 +12,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import { Copy, Check, ExternalLink, Pencil, Trash2, Tag } from 'lucide-react';
+import { Copy, Check, ExternalLink, Pencil, Trash2, Tag, CopyPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { copyWithAutoClear } from '@/lib/clipboard';
-import { useDeleteVaultEntry } from '@/api/useVault';
+import { useCloneVaultEntry, useDeleteVaultEntry } from '@/api/useVault';
 import { avatarColorClass } from '@/lib/vaultUi';
 import { cn } from '@/lib/utils';
 import PasswordField from './PasswordField';
@@ -46,6 +46,7 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
   const [copiedUser, setCopiedUser] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteEntry = useDeleteVaultEntry();
+  const cloneEntry = useCloneVaultEntry();
   const href = normalizeUrl(entry.url);
 
   const copyUsername = async () => {
@@ -69,6 +70,15 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
     }
   };
 
+  const handleClone = async () => {
+    try {
+      await cloneEntry.mutateAsync(entry);
+      toast.success('Credencial clonada');
+    } catch (error) {
+      toast.error(error?.data?.error?.message || error?.message || 'Erro ao clonar');
+    }
+  };
+
   return (
     <div className="h-full flex flex-col overflow-y-auto">
       <div className="flex items-start gap-3 p-6 border-b border-slate-200 dark:border-slate-700">
@@ -84,6 +94,16 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" onClick={onEdit} title="Editar" aria-label="Editar">
             <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClone}
+            disabled={cloneEntry.isPending}
+            title="Clonar"
+            aria-label="Clonar"
+          >
+            <CopyPlus className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"

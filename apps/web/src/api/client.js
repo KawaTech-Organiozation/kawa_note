@@ -232,6 +232,13 @@ export const foldersApi = {
   delete: (id) => apiClient.delete(`/folders/${id}`)
 };
 
+export const sharesApi = {
+  list: () => apiClient.get('/shares'),
+  create: (data) => apiClient.post('/shares', data),
+  revoke: (id) => apiClient.post(`/shares/${id}/revoke`),
+  publicGet: (id, token) => apiClient.get(`/shares/public/${id}`, { headers: { 'X-Share-Token': token } })
+};
+
 /**
  * Relations API
  */

@@ -10,6 +10,7 @@
 
 /** Tipo único de arraste: só movemos itens para pastas. */
 export const DND_TYPE_ITEM = 'ITEM';
+export const DND_TYPE_FOLDER = 'FOLDER';
 
 /** Prefixo dos droppables que representam pastas. */
 const FOLDER_PREFIX = 'folder:';

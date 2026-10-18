@@ -3,6 +3,8 @@ import { KeyRound, ChevronRight, AlertTriangle, GripVertical } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { avatarColorClass, hasHealthIssue } from '@/lib/vaultUi';
 import { DND_TYPE_ITEM, DROPPABLE_LIST } from '@/lib/dnd';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 /**
  * Credential list panel.
@@ -74,6 +76,15 @@ export default function VaultList({ entries = [], activeId = null, onSelect, hea
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                   {entry.username || '—'}
                 </p>
+                {entry.updatedAt && (
+                  <time
+                    dateTime={entry.updatedAt}
+                    title={new Date(entry.updatedAt).toLocaleString('pt-BR')}
+                    className="text-[11px] text-slate-400 dark:text-slate-500"
+                  >
+                    Atualizada {formatDistanceToNow(new Date(entry.updatedAt), { addSuffix: true, locale: ptBR })}
+                  </time>
+                )}
               </div>
               {issue && (
                 <AlertTriangle

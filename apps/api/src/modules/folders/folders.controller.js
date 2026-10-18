@@ -73,6 +73,9 @@ export const foldersController = {
       if (error.message === 'Circular reference detected') {
         return reply.status(400).send(errorResponse('Circular reference detected', 'VALIDATION_ERROR', 400));
       }
+      if (error.message === 'Folder scope mismatch') {
+        return reply.status(422).send(errorResponse('Folder scope mismatch', 'FOLDER_SCOPE_MISMATCH', 422));
+      }
       throw error;
     }
   },

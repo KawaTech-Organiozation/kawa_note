@@ -173,6 +173,28 @@ export const useCreateVaultEntry = () => {
 };
 
 /**
+ * Clone a credential entirely through the normal client-side encryption path.
+ * The API receives only the newly encrypted note, never the source plaintext.
+ */
+export const useCloneVaultEntry = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (credential) => {
+      const payload = credentialToNotePayload({
+        ...credential,
+        title: `Cópia de ${credential.title || 'credencial'}`
+      });
+      const encrypted = await encryptNoteData(payload);
+      encrypted.type = CREDENTIAL_NOTE_TYPE;
+      return notesApi.create(encrypted);
+    },
+    onSuccess: () => invalidateVault(queryClient),
+    onError: (error) => checkAndHandleEncryptionError(error)
+  });
+};
+
+/**
  * Update a credential entry.
  * @returns {import('@tanstack/react-query').UseMutationResult}
  */

@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { Wand2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { copyWithAutoClear } from '@/lib/clipboard';
@@ -17,7 +21,7 @@ import {
 } from '@/lib/passwordGenerator';
 
 /**
- * Password generator popover.
+ * Password generator modal.
  *
  * Two modes, both sharing the exact same controls:
  * - Field mode: pass `onUse` — the apply button fills the caller's password field.
@@ -66,14 +70,14 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
   };
 
   return (
-    <Popover
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (next) regenerate();
       }}
     >
-      <PopoverTrigger asChild>
+      <DialogTrigger asChild>
         {trigger || (
           <Button
             type="button"
@@ -86,8 +90,12 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
             <Wand2 className="w-4 h-4" />
           </Button>
         )}
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-4">
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Gerar senha</DialogTitle>
+          <DialogDescription>Escolha o comprimento e os tipos de caracteres.</DialogDescription>
+        </DialogHeader>
         <div className="flex items-center gap-2">
           <code className="flex-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1.5 text-sm font-mono break-all">
             {preview}
@@ -105,17 +113,24 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Comprimento</Label>
-            <span className="text-xs font-medium tabular-nums">{options.length}</span>
-          </div>
-          <Slider
+          <Label htmlFor="password-length">Comprimento</Label>
+          <Input
+            id="password-length"
+            type="number"
             min={8}
-            max={64}
+            max={128}
             step={1}
-            value={[options.length]}
-            onValueChange={([value]) => setOption('length', value)}
+            inputMode="numeric"
+            value={options.length}
+            onChange={(event) => {
+              const value = Number(event.target.value);
+              if (Number.isInteger(value) && value >= 8 && value <= 128) {
+                setOption('length', value);
+              }
+            }}
+            aria-describedby="password-length-help"
           />
+          <p id="password-length-help" className="text-xs text-slate-500">Use um valor entre 8 e 128.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -136,10 +151,12 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
           ))}
         </div>
 
-        <Button type="button" className="w-full" onClick={apply}>
-          {onUse ? 'Usar esta senha' : 'Copiar senha'}
-        </Button>
-      </PopoverContent>
-    </Popover>
+        <DialogFooter>
+          <Button type="button" className="w-full" onClick={apply}>
+            {onUse ? 'Usar esta senha' : 'Copiar senha'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

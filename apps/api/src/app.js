@@ -14,6 +14,7 @@ import relationsRoutes from './modules/relations/relations.routes.js';
 import appsRoutes from './modules/apps/apps.routes.js';
 import tenantsRoutes from './modules/tenants/tenants.routes.js';
 import onboardingRoutes from './modules/onboarding/onboarding.routes.js';
+import sharesRoutes from './modules/shares/shares.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -79,6 +80,7 @@ export async function buildApp() {
   await app.register(appsRoutes, { prefix: '/api/apps' });
   await app.register(tenantsRoutes, { prefix: '/api/tenants' });
   await app.register(onboardingRoutes, { prefix: '/api/onboarding' });
+  await app.register(sharesRoutes, { prefix: '/api/shares' });
 
   return app;
 }

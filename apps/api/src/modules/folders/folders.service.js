@@ -232,6 +232,9 @@ export const foldersService = {
       if (!parentFolder) {
         throw new Error('Parent folder not found');
       }
+      if (parentFolder.scope !== existingFolder.scope) {
+        throw new Error('Folder scope mismatch');
+      }
     }
 
     const folder = await prisma.folder.create({
