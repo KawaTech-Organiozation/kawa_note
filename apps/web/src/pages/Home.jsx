@@ -11,14 +11,16 @@ import NoteListPanel from '../components/notes/NoteListPanel';
 import NoteDetailPanel from '../components/notes/NoteDetailPanel';
 import NoteEmptyPanel from '../components/notes/NoteEmptyPanel';
 import QuickEditor from '../components/notes/QuickEditor';
+import SearchBar from '../components/notes/SearchBar';
 import MoveNoteDialog from '../components/notes/MoveNoteDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, ChevronLeft, ChevronRight, Lock, Menu } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, Menu } from 'lucide-react';
 import { useFolderHierarchy } from '@/api/useFolders';
 import { useMoveToFolder } from '@/api/useMoveToFolder';
 import { parseFolderDroppableId } from '@/lib/dnd';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -427,7 +429,7 @@ export default function Home() {
     });
   }, [runActionWithGuard]);
 
-  const LIST_PANEL_WIDTH = 'w-[320px] min-w-[240px]';
+  const LIST_PANEL_WIDTH = 'w-[var(--layout-list-width)]';
 
   return (
     <DragDropContext
@@ -455,6 +457,7 @@ export default function Home() {
         onSearchScopeChange={setSearchScope}
         onFilterChange={setFilters}
         searchableNotes={searchableNotes}
+        showSearch={false}
       />
 
       <div className={`flex-1 flex flex-col overflow-hidden ${isMobile ? (activeNote ? 'pb-28' : 'pb-16') : 'pb-0'}`}>
@@ -471,7 +474,10 @@ export default function Home() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-3 md:px-6 py-3">
+          <div className={cn(
+            'flex items-center gap-2 min-h-[var(--layout-header-height)] px-3 md:px-6 py-3',
+            activeNote && 'lg:pr-[460px]'
+          )}>
             {isMobile && (
               <Button
                 variant="ghost"
@@ -517,10 +523,18 @@ export default function Home() {
               </Button>
             )}
 
-            <div className="sm:flex hidden items-center gap-2 text-sm text-slate-500 dark:text-slate-400 ml-auto shrink-0">
-              <Sparkles className="w-4 h-4" />
-              <span>{notes.length} total</span>
+            <div className="hidden sm:block flex-1 min-w-[220px] max-w-[760px] ml-auto">
+              <SearchBar
+                onSearch={setSearchTerm}
+                onFilterChange={setFilters}
+                onSearchScopeChange={setSearchScope}
+                searchScope={searchScope}
+                onSelectResult={handleSelectNote}
+                value={searchTerm}
+                notes={searchableNotes}
+              />
             </div>
+
           </div>
         </div>
 

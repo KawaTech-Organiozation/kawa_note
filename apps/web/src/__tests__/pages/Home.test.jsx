@@ -49,6 +49,21 @@ vi.mock('@/components/layout/Sidebar', () => ({
   }
 }));
 
+vi.mock('@/components/notes/SearchBar', () => ({
+  default: function SearchBarMock({ onSearch, value }) {
+    return (
+      <div>
+        <label htmlFor="header-search">Busca no cabeçalho</label>
+        <input
+          id="header-search"
+          value={value}
+          onChange={(event) => onSearch(event.target.value)}
+        />
+      </div>
+    );
+  }
+}));
+
 vi.mock('@/components/layout/BottomNav', () => ({
   default: function BottomNavMock() {
     return null;

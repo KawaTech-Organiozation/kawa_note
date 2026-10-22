@@ -37,6 +37,7 @@ import {
 export default function PasswordGenerator({ onUse, triggerClassName, trigger }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState(DEFAULT_GENERATOR_OPTIONS);
+  const [lengthInput, setLengthInput] = useState(String(DEFAULT_GENERATOR_OPTIONS.length));
   const [preview, setPreview] = useState(() => generatePassword(DEFAULT_GENERATOR_OPTIONS));
 
   const regenerate = (next = options) => {
@@ -50,6 +51,7 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
       next.lowercase = true;
     }
     setOptions(next);
+    if (key === 'length') setLengthInput(String(value));
     regenerate(next);
   };
 
@@ -62,8 +64,7 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
     // Standalone: copy the generated password.
     const ok = await copyWithAutoClear(preview);
     if (ok) {
-      toast.success('Senha copiada — será limpa da área de transferência em 20s');
-      setOpen(false);
+      toast.success('Cpiado com sucesso!');
     } else {
       toast.error('Não foi possível copiar');
     }
@@ -74,7 +75,10 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) regenerate();
+        if (next) {
+          setLengthInput(String(options.length));
+          regenerate();
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -121,12 +125,21 @@ export default function PasswordGenerator({ onUse, triggerClassName, trigger }) 
             max={128}
             step={1}
             inputMode="numeric"
-            value={options.length}
+            value={lengthInput}
             onChange={(event) => {
-              const value = Number(event.target.value);
-              if (Number.isInteger(value) && value >= 8 && value <= 128) {
-                setOption('length', value);
-              }
+              const rawValue = event.target.value;
+              if (!/^\d{0,3}$/.test(rawValue)) return;
+
+              setLengthInput(rawValue);
+              const value = Number(rawValue);
+              if (Number.isInteger(value) && value >= 8 && value <= 128) setOption('length', value);
+            }}
+            onBlur={() => {
+              const value = Number(lengthInput);
+              const normalized = Number.isInteger(value) && value >= 8 && value <= 128
+                ? value
+                : Math.max(8, Math.min(128, options.length));
+              setOption('length', normalized);
             }}
             aria-describedby="password-length-help"
           />

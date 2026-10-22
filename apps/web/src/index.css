@@ -4,6 +4,10 @@
 
 @layer base {
   :root {
+    --layout-sidebar-width: 14rem;
+    --layout-list-width: 21.25rem;
+    --layout-header-height: 4.125rem;
+    --layout-list-item-height: 5.25rem;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;

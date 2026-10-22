@@ -12,6 +12,7 @@ import {
   Upload,
   Search,
   ChevronLeft,
+  ChevronRight,
   Wand2
 } from 'lucide-react';
 import {
@@ -190,6 +191,18 @@ export default function Vault() {
     [filtered, entries, activeId]
   );
 
+  const activeIndex = filtered.findIndex((entry) => entry.id === activeId);
+  const navigatePrevious = useCallback(() => {
+    if (filtered.length < 2) return;
+    const previousIndex = activeIndex <= 0 ? filtered.length - 1 : activeIndex - 1;
+    setActiveId(filtered[previousIndex].id);
+  }, [activeIndex, filtered]);
+  const navigateNext = useCallback(() => {
+    if (filtered.length < 2) return;
+    const nextIndex = activeIndex >= filtered.length - 1 ? 0 : activeIndex + 1;
+    setActiveId(filtered[nextIndex].id);
+  }, [activeIndex, filtered]);
+
   const openCreate = () => {
     setEditingEntry(null);
     setDialogOpen(true);
@@ -276,7 +289,7 @@ export default function Vault() {
     >
     <div className="flex h-screen bg-white dark:bg-[#232733] overflow-hidden text-slate-900 dark:text-slate-100">
       {/* Folder rail (desktop) */}
-      <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433]">
+      <aside className="hidden lg:flex flex-col w-[var(--layout-sidebar-width)] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433]">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           {/* Marca antes do switch, na mesma ordem da Sidebar de Notas. O
               quadrado esmeralda/teal que vivia aqui usava a paleta aposentada
@@ -337,7 +350,7 @@ export default function Vault() {
       <div className={cn('flex-1 flex flex-col overflow-hidden', isMobile && 'pb-16')}>
         {/* Header */}
         <div className="border-b border-slate-200 dark:border-slate-700 shrink-0">
-          <div className="flex items-center gap-2 px-3 md:px-6 py-3">
+          <div className="flex items-center gap-2 min-h-[var(--layout-header-height)] px-3 md:px-6 py-3">
             <Button
               variant="ghost"
               size="icon"
@@ -351,6 +364,18 @@ export default function Vault() {
                 sem identidade em tablet e mobile. O nome do app já aparece
                 dentro dela, então o h1 segue sendo só o rótulo da área. */}
             <BrandHeader isCollapsed className="lg:hidden shrink-0" />
+            {filtered.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden lg:inline-flex h-8 w-8 shrink-0"
+                onClick={navigatePrevious}
+                aria-label="Credencial anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            )}
+
             <div className="shrink-0">
               <h1 className="text-xl font-bold text-foreground leading-tight">
                 Cofre de Senha
@@ -360,9 +385,21 @@ export default function Vault() {
               </p>
             </div>
 
+            {filtered.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden lg:inline-flex h-8 w-8 shrink-0"
+                onClick={navigateNext}
+                aria-label="Próxima credencial"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            )}
+
             <div className="flex-1" />
 
-            <div className="relative hidden sm:block w-64">
+            <div className="relative hidden sm:block flex-1 min-w-[220px] max-w-[760px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 value={search}
@@ -434,7 +471,7 @@ export default function Vault() {
             {/* List */}
             <div
               className={cn(
-                'w-full lg:w-[340px] shrink-0 overflow-y-auto border-r border-slate-200 dark:border-slate-700',
+                'w-full lg:w-[var(--layout-list-width)] shrink-0 overflow-y-auto border-r border-slate-200 dark:border-slate-700',
                 activeEntry ? 'hidden lg:block' : 'block'
               )}
             >

@@ -70,7 +70,7 @@ const NoteEditor = forwardRef(function NoteEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('clean'); // 'clean' | 'dirty' | 'saving' | 'error'
   const [error, setError] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(mode === 'panel');
   const updateNoteMutation = useUpdateNote();
   const textareaRef = useRef(null);
   const latestNoteRef = useRef(note);
@@ -81,8 +81,8 @@ const NoteEditor = forwardRef(function NoteEditor({
     setPersistedSnapshot(getEditableSnapshot(note));
     setSaveStatus('clean');
     setError(null);
-    setIsEditMode(false);
-  }, [note]);
+    setIsEditMode(mode === 'panel');
+  }, [mode, note]);
 
   const currentSnapshot = useMemo(() => getEditableSnapshot(editedNote), [editedNote]);
   const isDirty = useMemo(
@@ -418,7 +418,7 @@ const NoteEditor = forwardRef(function NoteEditor({
           {renderSaveIndicator()}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className={`flex items-center gap-1 ${mode === 'panel' ? 'lg:fixed lg:top-3 lg:right-4 lg:z-40 lg:rounded-md lg:bg-white lg:px-1 lg:py-1 lg:shadow-sm dark:bg-[#2a3040]' : ''}`}>
           <Button
             variant={isDirty ? "default" : "outline"}
             size="sm"
@@ -559,7 +559,9 @@ const NoteEditor = forwardRef(function NoteEditor({
             value={editedNote.content}
             onChange={(e) => handleChange('content', e.target.value)}
             onKeyDown={handleTextareaKeyDown}
-            className="flex-1 mt-4 min-h-[200px] border-0 px-0 text-sm leading-relaxed resize-none focus-visible:ring-0 font-mono text-slate-700 dark:text-slate-200 bg-transparent"
+            aria-label="Conteúdo da nota"
+            spellCheck={false}
+            className="flex-1 mt-4 min-h-[320px] rounded-md border border-slate-200 bg-slate-50/80 px-4 py-3 text-[15px] leading-6 resize-none focus-visible:ring-2 focus-visible:ring-indigo-400 font-mono text-slate-700 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-200"
             placeholder="Escreva em Markdown... (- [ ] para criar to-do)"
             autoFocus
           />

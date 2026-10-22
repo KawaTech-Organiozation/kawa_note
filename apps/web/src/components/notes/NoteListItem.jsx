@@ -115,7 +115,7 @@ const NoteListItem = memo(function NoteListItem({ note, isActive, onClick, onDel
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
         className={[
-          'group relative flex items-start gap-3 px-3 py-3 cursor-pointer select-none',
+          'group relative flex items-start gap-3 h-[var(--layout-list-item-height)] overflow-hidden px-3 py-3 cursor-pointer select-none',
           'border-l-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:focus-visible:ring-fuchsia-400',
           isActive
             ? 'border-l-indigo-500 bg-indigo-50 dark:border-l-fuchsia-400 dark:bg-fuchsia-950/30'

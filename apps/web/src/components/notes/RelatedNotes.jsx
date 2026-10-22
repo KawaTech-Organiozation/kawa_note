@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, Link2, Sparkles, Trash2 } from "lucide-react";
+import { useState } from 'react';
+import { Check, ChevronDown, Link2, Sparkles, Trash2 } from "lucide-react";
 import { useDeleteRelation, useRelatedNotes, useUpdateRelation } from '@/api/useRelations';
 
 export default function RelatedNotes({ currentNote }) {
@@ -9,6 +10,7 @@ export default function RelatedNotes({ currentNote }) {
   const updateRelationMutation = useUpdateRelation();
   const deleteRelationMutation = useDeleteRelation();
   const relations = relationsResponse?.data || [];
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (!currentNote || relations.length === 0) {
     return null;
@@ -18,7 +20,21 @@ export default function RelatedNotes({ currentNote }) {
   const suggestedRelations = relations.filter((relation) => relation.relationType === 'semantic_suggested');
 
   return (
-    <div className="space-y-4 p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-[#262b3a]">
+    <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-[#262b3a]">
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 text-left"
+        onClick={() => setIsExpanded((current) => !current)}
+        aria-expanded={isExpanded}
+        aria-controls="note-related-content"
+      >
+        <Link2 className="w-4 h-4 text-indigo-500" />
+        <span className="font-medium text-sm text-slate-900 dark:text-slate-100">Relacionamentos ativos</span>
+        <Badge variant="secondary" className="ml-auto">{relations.length}</Badge>
+        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isExpanded && <div id="note-related-content" className="space-y-4 mt-4">
       {suggestedRelations.length > 0 && (
         <Card className="p-4 bg-white dark:bg-[#31384a] border-amber-200 dark:border-amber-900/70">
           <div className="flex items-center gap-2 mb-3">
@@ -95,6 +111,7 @@ export default function RelatedNotes({ currentNote }) {
           </div>
         </Card>
       )}
+      </div>}
     </div>
   );
 }

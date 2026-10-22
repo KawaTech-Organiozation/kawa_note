@@ -101,9 +101,9 @@ export default function SearchBar({
     .length;
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Linha 1: Campo de pesquisa */}
-      <div className="relative">
+    <div className="flex items-center gap-2">
+      {/* Campo de pesquisa */}
+      <div className="relative flex-1 min-w-0">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <Input
           value={searchTerm}
@@ -240,8 +240,8 @@ export default function SearchBar({
         )}
       </div>
 
-      {/* Linha 2: Botões */}
-      <div className="flex items-center gap-2">
+      {/* Controles de escopo e filtros */}
+      <div className="flex items-center gap-2 shrink-0">
         <Button
           variant="outline"
           size="icon"

@@ -339,6 +339,7 @@ function SidebarContent({
   onFilterChange,
   searchTerm,
   searchableNotes,
+  showSearch = true,
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -411,7 +412,7 @@ function SidebarContent({
         />
 
         {/* Search bar — visible only when sidebar is expanded */}
-        {!isCollapsed && (
+        {!isCollapsed && showSearch && (
           <div className="pt-2">
             <SearchBar
               onSearch={onSearch}
@@ -732,6 +733,7 @@ export default function Sidebar({
   onFilterChange,
   searchTerm,
   searchableNotes,
+  showSearch = true,
 }) {
   // Mobile: renderizar como Sheet drawer
   if (isMobile) {
@@ -757,6 +759,7 @@ export default function Sidebar({
             onFilterChange={onFilterChange}
             searchTerm={searchTerm}
             searchableNotes={searchableNotes}
+            showSearch={showSearch}
           />
         </SheetContent>
       </Sheet>
@@ -767,7 +770,7 @@ export default function Sidebar({
   return (
     <div className={cn(
       "h-screen bg-slate-50 dark:bg-[#202433] border-r border-slate-200 dark:border-slate-700 flex flex-col transition-all duration-300",
-      isCollapsed ? "w-16" : "w-64"
+      isCollapsed ? "w-16" : "w-[var(--layout-sidebar-width)]"
     )}>
       <SidebarContent
         selectedFolder={selectedFolder}
@@ -785,6 +788,7 @@ export default function Sidebar({
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         searchableNotes={searchableNotes}
+        showSearch={showSearch}
       />
     </div>
   );

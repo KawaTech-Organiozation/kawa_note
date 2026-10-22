@@ -44,7 +44,7 @@ export default function VaultList({ entries = [], activeId = null, onSelect, hea
             ref={provided.innerRef}
             {...provided.draggableProps}
             className={cn(
-              'flex items-stretch',
+              'flex items-stretch min-h-[var(--layout-list-item-height)]',
               snapshot.isDragging && 'opacity-90 shadow-lg rounded-lg bg-white dark:bg-slate-900'
             )}
           >
