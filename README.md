@@ -121,9 +121,9 @@ arquivo que o Portainer executa.
 
 Acesse `http://localhost:3116` e faça o onboarding para criar sua conta.
 
-> A porta da API está acoplada ao valor `3115`: o `nginx.conf` do frontend faz
-> `proxy_pass` para `kawa-note-api:3115` e não lê variáveis de ambiente. Ao
-> mudar `BACKEND_PORT`, atualize também o `nginx.conf`.
+> A API escuta em `3115` dentro da rede Docker, que é a porta usada pelo
+> `nginx.conf`. `BACKEND_PORT` define apenas a porta publicada no host; por
+> isso ela pode mudar sem alterar o proxy interno.
 
 ---
 

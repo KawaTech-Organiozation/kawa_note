@@ -46,14 +46,16 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      PORT: ${BACKEND_PORT}
+      # A porta interna é fixa porque o nginx do frontend acessa a API por
+      # kawa-note-api:3115. BACKEND_PORT é somente a porta publicada no host.
+      PORT: 3115
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     networks:
       kawatech-network:
         aliases:
           - kawa-note-api
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "${BACKEND_PORT}:3115"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -61,7 +63,7 @@ services:
     healthcheck:
       # A imagem da API e node:20-slim, que nao traz wget; usamos o fetch
       # global do Node 20 em vez de instalar um pacote so para o healthcheck.
-      test: ["CMD", "node", "-e", "fetch('http://localhost:'+(process.env.PORT||3115)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3115/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
