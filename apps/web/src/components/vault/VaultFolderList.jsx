@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { DND_TYPE_ITEM, DROPPABLE_ROOT, folderDroppableId } from '@/lib/dnd';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /** Filtro "todas as credenciais". */
 export const ALL = '__all__';
@@ -59,6 +60,7 @@ export default function VaultFolderList({
   onDeleteFolder,
   withDropTargets = true,
   alwaysShowActions = false,
+  isCollapsed = false,
   className
 }) {
   return (
@@ -69,6 +71,7 @@ export default function VaultFolderList({
         count={totalCount}
         active={activeFilter === ALL}
         onClick={() => onSelectFilter(ALL)}
+        isCollapsed={isCollapsed}
       />
       <FolderRow
         icon={FileX}
@@ -77,9 +80,10 @@ export default function VaultFolderList({
         active={activeFilter === NO_FOLDER}
         onClick={() => onSelectFilter(NO_FOLDER)}
         droppableId={withDropTargets ? DROPPABLE_ROOT : undefined}
+        isCollapsed={isCollapsed}
       />
       <div className="flex items-center justify-between pt-3 pb-1 px-2">
-        <span className="text-xs font-medium text-slate-500 uppercase">Pastas</span>
+        {!isCollapsed && <span className="text-xs font-medium text-slate-500 uppercase">Pastas</span>}
         <button
           type="button"
           onClick={onCreateFolder}
@@ -100,9 +104,10 @@ export default function VaultFolderList({
           onClick={() => onSelectFilter(folder.id)}
           onRename={() => onRenameFolder({ id: folder.id, name: folder.name, parentFolderId: folder.parentFolderId })}
           onDelete={() => onDeleteFolder({ id: folder.id, name: folder.name })}
-          style={{ paddingLeft: `${folder.level * 12 + 8}px` }}
+          style={isCollapsed ? undefined : { paddingLeft: `${folder.level * 12 + 8}px` }}
           droppableId={withDropTargets ? folderDroppableId(folder.id) : undefined}
           alwaysShowActions={alwaysShowActions}
+          isCollapsed={isCollapsed}
         />
       ))}
       {folders.length === 0 && (
@@ -129,11 +134,13 @@ function FolderRow({
   style,
   droppableId,
   alwaysShowActions = false,
-  dragHandleProps
+  dragHandleProps,
+  isCollapsed = false
 }) {
   const manageable = onRename || onDelete;
 
-  const row = (dropProvided, dropSnapshot) => (
+  const row = (dropProvided, dropSnapshot) => {
+    const content = (
     <div
       ref={dropProvided?.innerRef}
       {...(dropProvided?.droppableProps || {})}
@@ -153,13 +160,13 @@ function FolderRow({
         className="flex-1 flex items-center gap-2 px-2 py-1.5 min-w-0 text-left"
       >
         <Icon className="w-4 h-4 shrink-0" />
-        <span className="flex-1 truncate">{label}</span>
-        {count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
+        {!isCollapsed && <span className="flex-1 truncate">{label}</span>}
+        {!isCollapsed && count > 0 && <span className="text-xs text-slate-400 dark:text-slate-500">{count}</span>}
       </button>
       {dragHandleProps && (
         <button type="button" {...dragHandleProps} aria-label={`Mover pasta ${label}`} className="shrink-0 cursor-grab px-1 text-slate-400">⋮⋮</button>
       )}
-      {manageable && (
+      {!isCollapsed && manageable && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -192,8 +199,10 @@ function FolderRow({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </div>
-  );
+    </div>);
+    if (!isCollapsed) return content;
+    return <TooltipProvider delayDuration={0}><Tooltip><TooltipTrigger asChild>{content}</TooltipTrigger><TooltipContent side="right"><p>{label} {count > 0 && `(${count})`}</p></TooltipContent></Tooltip></TooltipProvider>;
+  };
 
   if (!droppableId) {
     return row(null, null);

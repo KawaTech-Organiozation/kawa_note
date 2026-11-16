@@ -37,6 +37,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import BrandHeader from '@/components/layout/BrandHeader';
 import MobileFolderDropBar from '@/components/layout/MobileFolderDropBar';
 import ModeSwitch from '@/components/layout/ModeSwitch';
+import SidebarFooter from '@/components/layout/SidebarFooter';
 import { useIsMobile, useIsBelowDesktop } from '@/hooks/useMobile';
 import { useMoveToFolder } from '@/api/useMoveToFolder';
 import { parseFolderDroppableId, DND_TYPE_FOLDER } from '@/lib/dnd';
@@ -80,6 +81,7 @@ export default function Vault() {
   const [sort, setSort] = useState('updated_desc');
   const [folderFilter, setFolderFilter] = useState(ALL);
   const [activeId, setActiveId] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -208,13 +210,6 @@ export default function Vault() {
     setDialogOpen(true);
   };
 
-  const openEdit = () => {
-    if (activeEntry) {
-      setEditingEntry(activeEntry);
-      setDialogOpen(true);
-    }
-  };
-
   const handleDeleted = () => {
     setActiveId(null);
     refetch();
@@ -289,16 +284,17 @@ export default function Vault() {
     >
     <div className="flex h-screen bg-white dark:bg-[#232733] overflow-hidden text-slate-900 dark:text-slate-100">
       {/* Folder rail (desktop) */}
-      <aside className="hidden lg:flex flex-col w-[var(--layout-sidebar-width)] shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433]">
+      <aside className={cn('hidden lg:flex flex-col shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#202433] transition-all duration-300', isSidebarCollapsed ? 'w-16' : 'w-[var(--layout-sidebar-width)]')}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           {/* Marca antes do switch, na mesma ordem da Sidebar de Notas. O
               quadrado esmeralda/teal que vivia aqui usava a paleta aposentada
               pela decisão de identidade registrada em `lib/brand.js`. */}
-          <BrandHeader section="Cofre" className="mb-4" />
+          <BrandHeader section="Cofre" isCollapsed={isSidebarCollapsed} className={isSidebarCollapsed ? undefined : 'mb-4'} />
           {/* Mesmo switch da Sidebar de Notas — a troca de modo é bidirecional
               e simétrica (PLAN-20260723-001, decisão D4). */}
           <ModeSwitch
             mode="vault"
+            isCollapsed={isSidebarCollapsed}
             onModeChange={(next) => { if (next === 'notes') navigate('/'); }}
           />
         </div>
@@ -314,8 +310,10 @@ export default function Vault() {
             onCreateFolder={() => setFolderDraft({ id: null, name: '' })}
             onRenameFolder={(folder) => setFolderDraft(folder)}
             onDeleteFolder={(folder) => setDeletingFolder(folder)}
+            isCollapsed={isSidebarCollapsed}
           />
         )}
+        <SidebarFooter isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed((value) => !value)} />
       </aside>
 
       {/* Gaveta de pastas (mobile) — destino da aba "Pastas" da BottomNav. */}
@@ -343,6 +341,7 @@ export default function Vault() {
             withDropTargets={false}
             alwaysShowActions
           />
+          <SidebarFooter isMobile />
         </SheetContent>
       </Sheet>
 
@@ -490,7 +489,7 @@ export default function Vault() {
                     Voltar
                   </button>
                   <div className="flex-1 overflow-hidden">
-                    <VaultDetailPanel entry={activeEntry} health={health.get(activeEntry.id)} onEdit={openEdit} onDeleted={handleDeleted} />
+                    <VaultDetailPanel entry={activeEntry} health={health.get(activeEntry.id)} onDeleted={handleDeleted} />
                   </div>
                 </div>
               ) : (

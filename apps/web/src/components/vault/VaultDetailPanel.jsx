@@ -20,6 +20,7 @@ import { avatarColorClass } from '@/lib/vaultUi';
 import { cn } from '@/lib/utils';
 import PasswordField from './PasswordField';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
+import VaultEntryForm from './VaultEntryForm';
 
 /**
  * Normalize a possibly-schemeless URL for opening in a new tab.
@@ -38,13 +39,13 @@ function normalizeUrl(url) {
  * @param {Object} props
  * @param {Object} props.entry - credential view-model
  * @param {Object} [props.health] - password-health flags for this entry
- * @param {() => void} props.onEdit
  * @param {() => void} props.onDeleted
  * @returns {JSX.Element}
  */
-export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
+export default function VaultDetailPanel({ entry, health, onDeleted }) {
   const [copiedUser, setCopiedUser] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const deleteEntry = useDeleteVaultEntry();
   const cloneEntry = useCloneVaultEntry();
   const href = normalizeUrl(entry.url);
@@ -92,7 +93,7 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" onClick={onEdit} title="Editar" aria-label="Editar">
+          <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} title="Editar" aria-label="Editar">
             <Pencil className="w-4 h-4" />
           </Button>
           <Button
@@ -118,6 +119,11 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
         </div>
       </div>
 
+      {isEditing ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          <VaultEntryForm entry={entry} onCancel={() => setIsEditing(false)} onSaved={() => setIsEditing(false)} />
+        </div>
+      ) : (
       <div className="p-6 space-y-5">
         <div className="space-y-1.5">
           <Label>Usuário / e-mail</Label>
@@ -198,6 +204,7 @@ export default function VaultDetailPanel({ entry, health, onEdit, onDeleted }) {
           </div>
         )}
       </div>
+      )}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
